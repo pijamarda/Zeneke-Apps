@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Fercoins — Tareas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'fercoins:manage' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="mb-0">Catálogo de tareas</h2>
+    </div>
+    <a href="{% url 'fercoins:chore_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>Nueva tarea
+    </a>
+</div>
+
+<h6 class="text-white-50 mb-2">Activas</h6>
+{% if active %}
+    <div class="list-group mb-4">
+        {% for chore in active %}
+            <div class="list-group-item bg-transparent border-secondary-subtle">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-semibold">{{ chore.name }}</span>
+                        {% if chore.description %}
+                            <small class="text-white-50 ms-2">{{ chore.description }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold {% if chore.fercoins >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if chore.fercoins >= 0 %}+{% endif %}{{ chore.fercoins }} 🪙
+                        </span>
+                        <a href="{% url 'fercoins:chore_edit' chore.pk %}" class="btn btn-outline-secondary btn-sm">Editar</a>
+                        <a href="{% url 'fercoins:chore_toggle' chore.pk %}" class="btn btn-outline-secondary btn-sm">Desactivar</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-white-50 mb-4">Sin tareas activas.</p>
+{% endif %}
+
+{% if inactive %}
+    <h6 class="text-white-50 mb-2">Inactivas</h6>
+    <div class="list-group">
+        {% for chore in inactive %}
+            <div class="list-group-item bg-transparent border-secondary-subtle opacity-50">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>{{ chore.name }}</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <span>{% if chore.fercoins >= 0 %}+{% endif %}{{ chore.fercoins }} 🪙</span>
+                        <a href="{% url 'fercoins:chore_toggle' chore.pk %}" class="btn btn-outline-secondary btn-sm">Activar</a>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}

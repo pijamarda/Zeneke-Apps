@@ -3,10 +3,22 @@
 {% block title %}Home — Zeneke{% endblock %}
 
 {% block content %}
-<h1>Welcome to Zeneke</h1>
-<p>Personal apps collection.</p>
+<div class="py-4">
+    <h1 class="display-5 fw-bold mb-1">Zeneke</h1>
+    <p class="mb-4">Personal apps collection.</p>
 
-<ul>
-    <li><a href="/bingo/">Bingo</a></li>
-</ul>
+    <div class="row g-3">
+        <div class="col-12 col-sm-6 col-md-4">
+            <a href="/bingo/" class="text-decoration-none">
+                <div class="card h-100 border-secondary-subtle app-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-2">🎱</div>
+                        <h5 class="card-title">Bingo</h5>
+                        <p class="card-text small">Play bingo with friends.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
 {% endblock %}

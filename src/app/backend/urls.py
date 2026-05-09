@@ -5,5 +5,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('allauth.urls')),
     path('bingo/', include('bingo.urls')),
+    path('fercoins/', include('fercoins.urls')),
     path('', include('core.urls')),
 ]

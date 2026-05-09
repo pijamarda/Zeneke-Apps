@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     # apps
     'core',
     'bingo',
+    'fercoins',
 ]
 
 MIDDLEWARE = [
