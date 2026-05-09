@@ -10,9 +10,9 @@ wheels/
 .venv
 
 # Django
-app/db.sqlite3
-app/staticfiles/
-app/media/
+src/app/db.sqlite3
+src/app/staticfiles/
+src/app/media/
 
 # uv
 .uv/
