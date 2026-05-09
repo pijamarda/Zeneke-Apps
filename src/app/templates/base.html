@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Zeneke{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="{% url 'core:home' %}" class="site-title">Zeneke</a>
+            <ul>
+                <li><a href="/bingo/">Bingo</a></li>
+            </ul>
+            <div class="auth-links">
+                {% if user.is_authenticated %}
+                    <span>{{ user.username }}</span>
+                    <form method="post" action="{% url 'account_logout' %}" style="display:inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-link">Logout</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'account_login' %}">Login</a>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                    <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>Zeneke</p>
+    </footer>
+</body>
+</html>
