@@ -35,3 +35,7 @@ Thumbs.db
 # Claude
 
 .claude/
+
+# Local binaries
+uv
+uvx
