@@ -8,6 +8,12 @@ schema: spec-driven
 #   context: |
 #     Designs and tasks must cover Windows, macOS, and Linux
 #     Write all artifacts in Spanish
+context: |
+  The developer uses the fish shell, on the dev machine and on the production VPS.
+  Any command written for a person to run (docs, DEPLOY.md, task verification steps)
+  must work in fish as well as bash: no globs that may match nothing (use find),
+  no variables holding a command line that rely on word-splitting, no bash-only
+  syntax. Shell scripts with a bash shebang are not affected.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

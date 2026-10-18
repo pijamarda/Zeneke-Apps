@@ -11,7 +11,7 @@ internet --443--> Caddy (host) --> 127.0.0.1:8010 --> container (gunicorn, uid 1
 Everything routine is one script: `./deploy.sh`.
 
 Commands marked **(server)** run on the VPS in the repo checkout; the rest are
-optional local checks.
+optional local checks. All commands work in fish and bash.
 
 ## First-time setup
 
@@ -128,11 +128,10 @@ Revert the bad commit on `main` (locally: `git revert <sha> && git push`), then
 ### Restore a backup (server)
 
 ```
-C="docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod"
-$C stop web
-$C cp backups/db-YYYYmmdd-HHMMSS.sqlite3 web:/data/db.sqlite3
-$C run --rm --no-deps --user root --entrypoint chown web zeneke:zeneke /data/db.sqlite3
-$C start web
+docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod stop web
+docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod cp backups/db-YYYYmmdd-HHMMSS.sqlite3 web:/data/db.sqlite3
+docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod run --rm --no-deps --user root --entrypoint chown web zeneke:zeneke /data/db.sqlite3
+docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod start web
 ```
 
 The `chown` makes sure the app (uid 1000) can write the restored file,
@@ -153,7 +152,7 @@ ghcr.io refuses. Check that nothing on the server needs a private ghcr.io image,
 then remove the stale login once (server):
 
 ```
-grep -rl "ghcr.io" ~/*/docker-compose*.yml ~/*/Dockerfile 2>/dev/null   # other projects using ghcr.io
+find ~ -maxdepth 3 \( -name 'docker-compose*.yml' -o -name 'Dockerfile' \) -exec grep -l 'ghcr.io' {} + 2>/dev/null
 docker logout ghcr.io
 ./deploy.sh
 ```
