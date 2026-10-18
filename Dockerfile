@@ -20,6 +20,12 @@ RUN chmod +x /entrypoint.sh
 
 WORKDIR /app/app
 
+# Collect static files into the image. The key and host only satisfy production
+# settings validation for this step; they are not kept in the image.
+RUN DEBUG=false ALLOWED_HOSTS=build \
+    SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')" \
+    python manage.py collectstatic --noinput
+
 EXPOSE 8000
 
 ENTRYPOINT ["/entrypoint.sh"]

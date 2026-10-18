@@ -12,8 +12,9 @@ uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
-Settings read plain environment variables (see `src/.env.example`); `src/.env`
-is only loaded by docker-compose. Without them, local defaults apply.
+Copy `src/.env.example` to `src/.env` first. It is loaded automatically (also
+by docker-compose) and sets `DEBUG=true`. Without it the app starts in
+production mode and refuses to run without a real `SECRET_KEY` and `ALLOWED_HOSTS`.
 
 ### Signing in
 
@@ -24,6 +25,30 @@ is only loaded by docker-compose. Without them, local defaults apply.
   6-digit setup code (valid 24h). The kid enters their username + that code on
   `/accounts/login/` and chooses their own 4-digit PIN. Parents can reset a PIN
   or unlock an account (5 wrong PINs lock it for 15 minutes) from `/family/`.
+
+## Production environment
+
+Production mode is the default (anything but `DEBUG=true`). The app expects a
+proxy in front (Caddy, Fly.io, ...) that terminates HTTPS and sends
+`X-Forwarded-Proto`; plain HTTP is redirected to HTTPS. Static files are
+collected into the image at build time and served by the app itself.
+
+| Variable | Required | Meaning |
+|---|---|---|
+| `SECRET_KEY` | yes | 50+ random characters; startup fails without it |
+| `ALLOWED_HOSTS` | yes | site domain(s), comma-separated, e.g. `zeneke.example.com` |
+| `DATA_DIR` | recommended | directory for `db.sqlite3`, on a persistent volume (default: `src/app/`) |
+| `SECURE_HSTS_SECONDS` | no | HSTS duration, default `3600`; raise once HTTPS is stable |
+| `CSRF_TRUSTED_ORIGINS` | no | defaults to `https://<each allowed host>` |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | for Google sign-in | add `https://<domain>/accounts/google/login/callback/` to the OAuth client |
+
+Generate a key with:
+
+```
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+```
+
+Do not expose the container port (8000) publicly; only the proxy should reach it.
 
 ## Django specific commands
 

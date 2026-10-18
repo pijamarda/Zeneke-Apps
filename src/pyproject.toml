@@ -10,5 +10,7 @@ dependencies = [
     "django-allauth[github,google]>=65.16.1",
     "gunicorn>=26.0.0",
     "pyjwt>=2.12.1",
+    "python-dotenv>=1.2.4",
     "requests>=2.33.1",
+    "whitenoise>=6.12.0",
 ]
