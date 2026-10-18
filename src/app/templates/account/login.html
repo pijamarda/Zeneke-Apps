@@ -27,6 +27,33 @@
                         Continue with GitHub
                     </a>
                 </div>
+
+                <hr class="my-4">
+
+                <h5 class="fw-bold mb-1">Kids</h5>
+                <p class="text-white-50 small mb-3">Your username and PIN (or the setup code a parent gave you).</p>
+
+                {% if kid_error %}
+                    <div class="alert alert-danger py-2 small" role="alert">{{ kid_error }}</div>
+                {% endif %}
+
+                <form method="post" action="{% url 'core:kid_login' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% firstof kid_next request.GET.next %}">
+                    <div class="mb-2">
+                        <label for="kid-username" class="form-label small">Username</label>
+                        <input type="text" id="kid-username" name="username" class="form-control"
+                               value="{{ kid_username }}" autocomplete="username"
+                               autocapitalize="none" spellcheck="false" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="kid-code" class="form-label small">PIN</label>
+                        <input type="password" id="kid-code" name="code" class="form-control"
+                               inputmode="numeric" pattern="[0-9]{4}|[0-9]{6}" maxlength="6"
+                               autocomplete="current-password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Enter</button>
+                </form>
             </div>
         </div>
     </div>

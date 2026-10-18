@@ -8,7 +8,7 @@ User = get_user_model()
 
 class GiveFercoinsForm(forms.Form):
     recipient = forms.ModelChoiceField(
-        queryset=User.objects.filter(is_superuser=False).order_by('username'),
+        queryset=User.objects.filter(kid_profile__isnull=False).order_by('username'),
         empty_label='— seleccionar miembro —',
         label='Miembro',
     )

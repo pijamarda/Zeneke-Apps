@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Familia — Zeneke{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0">Familia</h2>
+    <a href="{% url 'core:family_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-person-plus me-1"></i>Añadir niño/a
+    </a>
+</div>
+
+{% if kids %}
+    <div class="row g-3">
+        {% for kid in kids %}
+            <div class="col-12 col-sm-6 col-md-4">
+                <div class="card border-secondary-subtle h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">{{ kid.user.username }}</h5>
+                            {% if kid.state == 'locked' %}
+                                <span class="badge bg-danger">{{ kid.get_state_display }}</span>
+                            {% elif kid.state == 'awaiting_setup' %}
+                                <span class="badge bg-warning text-dark">{{ kid.get_state_display }}</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ kid.get_state_display }}</span>
+                            {% endif %}
+                        </div>
+                        {% if kid.state == 'locked' %}
+                            <p class="small text-white-50 mb-3">Bloqueado hasta {{ kid.locked_until|time:"H:i" }}</p>
+                        {% elif kid.state == 'awaiting_setup' %}
+                            <p class="small text-white-50 mb-3">
+                                {% if kid.has_valid_setup_code %}Código válido hasta {{ kid.setup_code_expires_at|date:"d/m H:i" }}{% else %}Código caducado{% endif %}
+                            </p>
+                        {% endif %}
+                        <div class="d-flex gap-2">
+                            {% if kid.state == 'locked' %}
+                                <form method="post" action="{% url 'core:family_unlock' kid.pk %}" class="m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-light btn-sm">
+                                        <i class="bi bi-unlock me-1"></i>Desbloquear
+                                    </button>
+                                </form>
+                            {% endif %}
+                            <form method="post" action="{% url 'core:family_reset_pin' kid.pk %}" class="m-0"
+                                  onsubmit="return confirm('¿Restablecer el PIN de {{ kid.user.username|escapejs }}? Se cerrará su sesión.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-outline-light btn-sm">
+                                    <i class="bi bi-key me-1"></i>{% if kid.state == 'awaiting_setup' %}Nuevo código{% else %}Restablecer PIN{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-white-50">Todavía no hay niños. Añade el primero para que pueda entrar con su PIN.</p>
+{% endif %}
+{% endblock %}

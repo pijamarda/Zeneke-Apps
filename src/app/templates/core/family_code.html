@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Código de configuración — Zeneke{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6">
+        <div class="card border-secondary-subtle mt-4">
+            <div class="card-body p-4 text-center">
+                <h4 class="fw-bold mb-1">
+                    {% if created %}{{ kid.username }} creado{% else %}Nuevo código para {{ kid.username }}{% endif %}
+                </h4>
+                <p class="text-white-50 small mb-4">
+                    Usuario <strong class="text-white">{{ kid.username }}</strong> + este código en la página de login.
+                    Luego elegirá su propio PIN.
+                </p>
+                <div class="display-4 fw-bold font-monospace mb-3" data-setup-code>{{ code }}</div>
+                <p class="small text-warning mb-4">
+                    Caduca en 24 horas y solo se muestra ahora. Si lo pierdes, genera uno nuevo.
+                </p>
+                <a href="{% url 'core:family' %}" class="btn btn-primary">Volver a Familia</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

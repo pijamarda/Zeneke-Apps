@@ -37,6 +37,8 @@
         {% endfor %}
     </div>
 {% else %}
-    <p class="text-white-50">Sin miembros todavía. Aparecerán aquí después de su primer inicio de sesión.</p>
+    <p class="text-white-50">
+        Sin niños todavía. Créalos desde <a href="{% url 'core:family' %}">Familia</a> y aparecerán aquí.
+    </p>
 {% endif %}
 {% endblock %}

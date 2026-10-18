@@ -31,7 +31,7 @@ def dashboard(request):
 @superuser_required
 def manage(request):
     members = (
-        User.objects.filter(is_superuser=False)
+        User.objects.filter(kid_profile__isnull=False)
         .annotate(balance=Coalesce(Sum('fercoins_received__amount'), Value(0)))
         .order_by('username')
     )
