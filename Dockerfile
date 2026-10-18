@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Pinned so builds are repeatable; keep in step with the uv used locally (`uv --version`).
+COPY --from=ghcr.io/astral-sh/uv:0.9.16 /uv /uvx /bin/
 
 # Keep the virtualenv outside /app so the dev bind mount (./src:/app) never hides it
 # and every `--build` picks up dependency changes.

@@ -143,6 +143,30 @@ whatever user ran the copy.
 Once HTTPS has been stable for a while, set `SECURE_HSTS_SECONDS=31536000` in
 `.env.prod` and run `./deploy.sh`.
 
+## Troubleshooting
+
+### `failed to fetch oauth token ... denied` while pulling `ghcr.io/astral-sh/uv`
+
+The build pulls a public image from ghcr.io. If `~/.docker/config.json` on the
+server still holds an old or expired ghcr.io login, Docker sends it anyway and
+ghcr.io refuses. Check that nothing on the server needs a private ghcr.io image,
+then remove the stale login once (server):
+
+```
+grep -rl "ghcr.io" ~/*/docker-compose*.yml ~/*/Dockerfile 2>/dev/null   # other projects using ghcr.io
+docker logout ghcr.io
+./deploy.sh
+```
+
+If you do need that login for another project, log in again with a valid token
+(`docker login ghcr.io`) instead of logging out.
+
+### `deploy.sh` refuses with "uncommitted changes in the checkout"
+
+The server checkout must only ever be updated by `deploy.sh`. Run
+`git status --short` to see what changed; undo it with `git checkout -- <file>`,
+or commit the change on your dev machine and push it.
+
 ## Later: deploy from GitHub Actions
 
 `deploy.sh` needs no changes. Give CI its own SSH key, stored as a GitHub
