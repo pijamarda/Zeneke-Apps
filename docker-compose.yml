@@ -1,15 +1,14 @@
 services:
   web:
     build: .
-    command: uv run python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver 0.0.0.0:8000
+    # Run as your host user so files written into ./src (e.g. db.sqlite3) stay yours.
+    # Override with `UID=$(id -u) GID=$(id -g) docker compose up` if you're not 1000:1000.
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./src:/app
-      - venv:/app/.venv
     ports:
       - "8000:8000"
     env_file:
       - src/.env
     working_dir: /app/app
-
-volumes:
-  venv:
