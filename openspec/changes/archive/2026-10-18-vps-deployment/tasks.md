@@ -48,8 +48,8 @@ Run Django commands from `src/app` with `uv run python manage.py ...`. Script te
 
 ## 8. Rollout on the VPS (you, on the server; guided)
 
-- [ ] 8.1 Follow `DEPLOY.md` first-time setup on the VPS up to and including the first `./deploy.sh`. Verify `https://apps.zeneke.com/healthz` returns `ok` and `https://apps.zeneke.com/` loads with its CSS and a valid certificate.
-- [ ] 8.2 Finish the setup: Google redirect URI and authorized domain, the first parent, a test kid, the daily backup cron line. Verify Google sign-in works on `https://apps.zeneke.com`, a kid can sign in with a PIN, and `./backup.sh` writes a file in `backups/`.
+- [x] 8.1 Follow `DEPLOY.md` first-time setup on the VPS up to and including the first `./deploy.sh`. Verify `https://apps.zeneke.com/healthz` returns `ok` and `https://apps.zeneke.com/` loads with its CSS and a valid certificate.
+- [x] 8.2 Finish the setup: Google redirect URI and authorized domain, the first parent, a test kid, the daily backup cron line. Verify Google sign-in works on `https://apps.zeneke.com`, a kid can sign in with a PIN, and `./backup.sh` writes a file in `backups/`.
 
 ## Workflow follow-up
 
