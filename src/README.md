@@ -28,6 +28,8 @@ production mode and refuses to run without a real `SECRET_KEY` and `ALLOWED_HOST
 
 ## Production environment
 
+Deploying to the VPS (Caddy, `deploy.sh`, backups): see [DEPLOY.md](../DEPLOY.md).
+
 Production mode is the default (anything but `DEBUG=true`). The app expects a
 proxy in front (Caddy, Fly.io, ...) that terminates HTTPS and sends
 `X-Forwarded-Proto`; plain HTTP is redirected to HTTPS. Static files are

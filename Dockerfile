@@ -26,7 +26,17 @@ RUN DEBUG=false ALLOWED_HOSTS=build \
     SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(50))')" \
     python manage.py collectstatic --noinput
 
+# Unprivileged runtime user. /data (DATA_DIR in production) is owned by it, and a
+# named volume mounted there inherits that ownership when first created.
+RUN useradd --uid 1000 --no-create-home --shell /usr/sbin/nologin zeneke \
+    && mkdir /data && chown zeneke:zeneke /data
+
 EXPOSE 8000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=2).status == 200 else 1)"
+
+USER zeneke
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "2"]

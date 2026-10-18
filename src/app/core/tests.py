@@ -1,10 +1,12 @@
 import time
 from datetime import timedelta
+from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model
 from django.core.exceptions import ValidationError
-from django.test import Client, TestCase
+from django.db import OperationalError, connection
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -402,3 +404,41 @@ class FamilyManagementTests(TestCase):
 
     def test_navbar_link_for_parents(self):
         self.assertContains(self.client.get('/'), reverse('core:family'))
+
+
+PROD_SECURITY = dict(
+    DEBUG=False,
+    ALLOWED_HOSTS=['zeneke.example.com'],
+    SECURE_PROXY_SSL_HEADER=('HTTP_X_FORWARDED_PROTO', 'https'),
+    SECURE_SSL_REDIRECT=True,
+)
+
+
+class HealthCheckTests(SimpleTestCase):
+    """SimpleTestCase forbids database queries, so these also prove /healthz needs none."""
+
+    def assertHealthy(self, response):
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b'ok')
+        self.assertEqual(response['Content-Type'], 'text/plain')
+
+    def test_ok_in_development(self):
+        self.assertHealthy(self.client.get('/healthz'))
+
+    @override_settings(**PROD_SECURITY)
+    def test_plain_http_in_production_not_redirected(self):
+        self.assertHealthy(self.client.get('/healthz', HTTP_HOST='zeneke.example.com'))
+        for path in ['/', '/healthz/extra']:
+            with self.subTest(path=path):
+                response = self.client.get(path, HTTP_HOST='zeneke.example.com')
+                self.assertEqual(response.status_code, 301)
+
+    @override_settings(**PROD_SECURITY)
+    def test_unknown_host(self):
+        self.assertHealthy(self.client.get('/healthz', HTTP_HOST='127.0.0.1:8000'))
+
+    def test_database_unavailable(self):
+        with mock.patch.object(
+            connection, 'ensure_connection', side_effect=OperationalError('db down')
+        ):
+            self.assertHealthy(self.client.get('/healthz'))
