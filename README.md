@@ -151,7 +151,8 @@ each feature starts as a proposal, a spec of the required behaviour, a design
 and a task list, and is archived once it ships.
 
 - `openspec/specs/` describes what the system does today: `kid-authentication`,
-  `family-management`, `fercoins`, `runtime-configuration` and `deployment`.
+  `family-management`, `fercoins`, `bingo-rooms`, `bingo-game`,
+  `runtime-configuration` and `deployment`.
 - `openspec/changes/archive/` keeps every completed change, with its proposal,
   design and tasks.
 

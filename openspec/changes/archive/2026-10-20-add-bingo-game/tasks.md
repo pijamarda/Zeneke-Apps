@@ -50,7 +50,7 @@ Run all commands from `src/app` with `uv run python manage.py ...`.
 ## 8. Integration check
 
 - [x] 8.1 Run the full suite (`manage.py test`) and `makemigrations --check`. Then smoke-test with `runserver` on one machine: create a room in one window, join as two players from two private windows (one of them also joining from the host window), draw until a valid línea, make a second valid línea claim during the pause (shared prize), make an invalid bingo claim (message only), play to bingo, and start a new game. Confirm every step behaves as specified.
-- [ ] 8.2 Build the production image (`docker compose up --build` with production-like settings, or the deploy procedure in DEPLOY.md on the server). Open the join URL by scanning the host screen's QR code with a real phone and confirm it is an `https://` URL that opens the join page.
+- [x] 8.2 Build the production image (`docker compose up --build` with production-like settings, or the deploy procedure in DEPLOY.md on the server). Open the join URL by scanning the host screen's QR code with a real phone and confirm it is an `https://` URL that opens the join page.
 
 ## Workflow follow-up
 
