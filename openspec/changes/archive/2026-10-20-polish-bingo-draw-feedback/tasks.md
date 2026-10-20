@@ -15,7 +15,7 @@ Front-end only: `src/app/static/bingo/bingo.js` and `src/app/static/bingo/bingo.
 ## 3. Integration check
 
 - [x] 3.1 Run `uv run python manage.py test` (it should still pass, since no server code changed). Then play a short game in the browser with a host window and two phone-sized player windows: manual draws, automatic drawing at 5 s, a línea claim with its pause, and a new game. Confirm the animations and fade behave as in tasks 1-2, with no errors in the browser console.
-- [ ] 3.2 After deploying with `./deploy.sh`, open a room on the TV or laptop and join with a real phone. Confirm the fade shows once the strip overflows, swiping reveals older balls, and new balls animate on both screens.
+- [x] 3.2 After deploying with `./deploy.sh`, open a room on the TV or laptop and join with a real phone. Confirm the fade shows once the strip overflows, swiping reveals older balls, and new balls animate on both screens.
 
 ## Workflow follow-up
 
