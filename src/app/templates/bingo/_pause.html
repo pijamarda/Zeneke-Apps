@@ -1,0 +1,12 @@
+<div class="pause-overlay" id="pause" hidden>
+    <div class="pause-box">
+        <div class="pause-title" id="pause-title"></div>
+        <ul class="pause-winners" id="pause-winners"></ul>
+        <div class="progress pause-progress" role="progressbar" aria-label="Tiempo hasta continuar">
+            <div class="progress-bar" id="pause-bar"></div>
+        </div>
+        {% if host %}
+            <button type="button" class="btn btn-light btn-lg mt-3" id="continue-btn">Continuar</button>
+        {% endif %}
+    </div>
+</div>

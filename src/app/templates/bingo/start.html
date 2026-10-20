@@ -1,0 +1,27 @@
+{% extends "bingo/base.html" %}
+
+{% block content %}
+<div class="bingo-narrow">
+    <h1 class="display-6 fw-bold mb-3">Bingo</h1>
+    <p class="text-secondary">Bingo de 90 bolas: primero la línea, luego el bingo. Crea una sala en una pantalla grande y que los demás se unan con el móvil escaneando el código QR.</p>
+
+    {% if message %}
+        <div class="alert alert-warning" role="alert">{{ message }}</div>
+    {% endif %}
+
+    <form method="post" action="{% url 'bingo:create' %}" class="mb-4">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary btn-lg w-100">Crear sala</button>
+    </form>
+
+    <form method="post" action="{% url 'bingo:go' %}">
+        {% csrf_token %}
+        <label for="code" class="form-label">¿Tienes un código de sala?</label>
+        <div class="input-group input-group-lg">
+            <input type="text" id="code" name="code" value="{{ code }}" class="form-control text-uppercase"
+                   maxlength="10" autocomplete="off" autocapitalize="characters" placeholder="Código" required>
+            <button type="submit" class="btn btn-outline-light">Entrar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

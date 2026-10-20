@@ -1,0 +1,57 @@
+{% extends "bingo/base.html" %}
+{% load static %}
+
+{% block title %}{{ room.code }} — Bingo{% endblock %}
+{% block body_class %}bingo-player{% endblock %}
+
+{% block header_extra %}
+<span class="bingo-who"><span class="text-secondary">Sala</span> <strong class="room-code">{{ room.code }}</strong> · {{ player.nickname }}</span>
+{% endblock %}
+
+{% block content %}
+<div id="bingo-app" data-role="player"
+     data-state-url="{% url 'bingo:state' room.code %}"
+     data-mark-url="{% url 'bingo:mark' room.code %}"
+     data-claim-url="{% url 'bingo:claim' room.code %}">
+
+    <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="ball ball-last" id="last-ball">{{ state.last|default:"–" }}</div>
+        <div>
+            <div class="fw-semibold" id="stage-text"></div>
+            <div class="small text-secondary"><span id="drawn-count">{{ state.drawn|length }}</span> bolas</div>
+        </div>
+    </div>
+    <div class="drawn-strip mb-3" id="drawn-strip">
+        {% for n in state.drawn reversed %}<span class="ball ball-small">{{ n }}</span>{% endfor %}
+    </div>
+
+    <table class="bingo-card" id="card">
+        {% for row in card_rows %}
+        <tr>
+            {% for cell in row %}
+                {% if cell.number %}
+                    <td class="cell{% if cell.marked %} marked{% endif %}" data-number="{{ cell.number }}">{{ cell.number }}</td>
+                {% else %}
+                    <td class="cell blank"></td>
+                {% endif %}
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+
+    <div class="claim-buttons">
+        <button type="button" class="btn btn-warning btn-lg" id="claim-linea" data-prize="linea">¡Línea!</button>
+        <button type="button" class="btn btn-success btn-lg" id="claim-bingo" data-prize="bingo">¡Bingo!</button>
+    </div>
+    <div class="claim-message" id="message" role="status" aria-live="polite"></div>
+
+    <div class="winners-panel" id="winners"></div>
+
+    {% include "bingo/_pause.html" %}
+</div>
+{{ state|json_script:"initial-state" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'bingo/bingo.js' %}"></script>
+{% endblock %}

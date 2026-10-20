@@ -1,0 +1,11 @@
+{% extends "bingo/base.html" %}
+
+{% block title %}Fuera de la sala — Bingo{% endblock %}
+
+{% block content %}
+<div class="bingo-narrow text-center">
+    <h1 class="h3 mb-3">Te han sacado de la sala</h1>
+    <p class="text-secondary">Quien organiza la partida te ha quitado de la sala {{ room.code }}.</p>
+    <a href="{% url 'bingo:start' %}" class="btn btn-primary btn-lg">Volver al inicio</a>
+</div>
+{% endblock %}

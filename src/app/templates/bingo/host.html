@@ -1,0 +1,72 @@
+{% extends "bingo/base.html" %}
+{% load static %}
+
+{% block title %}Sala {{ room.code }} — Bingo{% endblock %}
+{% block body_class %}bingo-host{% endblock %}
+
+{% block header_extra %}
+<a href="{% url 'bingo:room' room.code %}" class="btn btn-outline-light btn-sm" target="_blank" rel="noopener">Jugar yo también</a>
+{% endblock %}
+
+{% block content %}
+<div id="bingo-app" data-role="host"
+     data-state-url="{% url 'bingo:state' room.code %}?view=host"
+     data-draw-url="{% url 'bingo:draw' room.code %}"
+     data-continue-url="{% url 'bingo:continue' room.code %}"
+     data-auto-url="{% url 'bingo:auto' room.code %}"
+     data-new-game-url="{% url 'bingo:new_game' room.code %}"
+     data-remove-url="{% url 'bingo:remove' room.code 0 %}">
+
+    <div class="host-grid">
+        <section class="host-join">
+            <div class="text-secondary">Sala</div>
+            <div class="room-code host-code">{{ room.code }}</div>
+            <div class="qr">{{ qr_svg|safe }}</div>
+            <div class="small text-secondary text-break">{{ join_url }}</div>
+
+            <h2 class="h5 mt-4">Jugadores (<span id="player-count">{{ state.players|length }}</span>)</h2>
+            <ul class="player-list" id="players">
+                {% for p in state.players %}<li>{{ p.nickname }}</li>{% endfor %}
+            </ul>
+        </section>
+
+        <section class="host-game">
+            <div class="d-flex align-items-center gap-4 mb-3">
+                <div class="ball ball-huge" id="last-ball">{{ state.last|default:"–" }}</div>
+                <div>
+                    <div class="fs-4 fw-semibold" id="stage-text"></div>
+                    <div class="text-secondary"><span id="drawn-count">{{ state.drawn|length }}</span> bolas · quedan <span id="balls-left">{{ state.balls_left }}</span></div>
+                </div>
+            </div>
+
+            <div class="board" id="board">
+                {% for n in board %}<span class="board-cell{% if n in state.drawn %} drawn{% endif %}" data-number="{{ n }}">{{ n }}</span>{% endfor %}
+            </div>
+
+            <div class="host-controls">
+                <button type="button" class="btn btn-primary btn-lg" id="draw-btn">Sacar bola</button>
+                <label class="d-flex align-items-center gap-2 mb-0">
+                    <span>Automático</span>
+                    <select class="form-select" id="auto-select">
+                        <option value="off"{% if not room.auto_interval %} selected{% endif %}>No</option>
+                        {% for s in intervals %}
+                            <option value="{{ s }}"{% if room.auto_interval == s %} selected{% endif %}>Cada {{ s }} s</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <button type="button" class="btn btn-outline-light" id="new-game-btn">Nueva partida</button>
+            </div>
+            <div class="claim-message" id="message" role="status" aria-live="polite"></div>
+
+            <div class="winners-panel" id="winners"></div>
+        </section>
+    </div>
+
+    {% include "bingo/_pause.html" with host=True %}
+</div>
+{{ state|json_script:"initial-state" }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'bingo/bingo.js' %}"></script>
+{% endblock %}

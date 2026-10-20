@@ -1,0 +1,282 @@
+body.bingo {
+    min-height: 100vh;
+    background: #12141a;
+}
+
+.bingo-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bingo-brand {
+    font-weight: 700;
+    color: inherit;
+    text-decoration: none;
+}
+
+.bingo-main {
+    padding: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.bingo-narrow {
+    max-width: 28rem;
+    margin: 2rem auto;
+}
+
+.room-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing: 0.15em;
+}
+
+/* Balls */
+
+.ball {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #f8f9fa;
+    color: #12141a;
+    font-weight: 700;
+}
+
+.ball-last {
+    width: 4rem;
+    height: 4rem;
+    font-size: 1.8rem;
+    background: #ffc107;
+    flex: none;
+}
+
+.ball-huge {
+    width: 9rem;
+    height: 9rem;
+    font-size: 4.5rem;
+    background: #ffc107;
+    flex: none;
+}
+
+.ball-small {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.85rem;
+    flex: none;
+}
+
+.drawn-strip {
+    display: flex;
+    gap: 0.3rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+}
+
+/* Player card */
+
+.bingo-card {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 3px;
+    user-select: none;
+}
+
+.bingo-card .cell {
+    height: 3.2rem;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    border-radius: 0.4rem;
+    background: #f8f9fa;
+    color: #12141a;
+    cursor: pointer;
+}
+
+.bingo-card .cell.blank {
+    background: rgba(255, 255, 255, 0.08);
+    cursor: default;
+}
+
+.bingo-card .cell.marked {
+    background: #dc3545;
+    color: #fff;
+}
+
+.claim-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.claim-buttons .btn {
+    padding: 1rem;
+    font-weight: 700;
+}
+
+.claim-message {
+    min-height: 1.5rem;
+    margin-top: 0.75rem;
+    text-align: center;
+    font-weight: 600;
+}
+
+.claim-message.error { color: #ff6b6b; }
+.claim-message.success { color: #51cf66; }
+.claim-message.info { color: #74c0fc; }
+
+.winners-panel {
+    margin-top: 1rem;
+    font-size: 1.1rem;
+}
+
+.winners-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.winners-prize {
+    font-weight: 700;
+    color: #ffc107;
+}
+
+/* Pause overlay */
+
+.pause-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10;
+    padding: 1rem;
+}
+
+.pause-overlay[hidden] {
+    display: none;
+}
+
+.pause-box {
+    text-align: center;
+    width: min(40rem, 100%);
+}
+
+.pause-title {
+    font-size: clamp(3rem, 12vw, 7rem);
+    font-weight: 800;
+    color: #ffc107;
+}
+
+.pause-winners {
+    list-style: none;
+    padding: 0;
+    font-size: clamp(1.2rem, 4vw, 2rem);
+}
+
+.winner-numbers {
+    color: #adb5bd;
+}
+
+.pause-progress {
+    height: 0.8rem;
+}
+
+/* On phones the pause is a banner: players can still mark and claim a shared prize. */
+.bingo-player .pause-overlay {
+    inset: 0 0 auto 0;
+    padding: 0.75rem 1rem;
+    background: rgba(0, 0, 0, 0.92);
+    border-bottom: 2px solid #ffc107;
+    pointer-events: none;
+}
+
+.bingo-player .pause-title {
+    font-size: 2.5rem;
+    line-height: 1.1;
+}
+
+.bingo-player .pause-winners {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.pause-progress .progress-bar {
+    transition: none;
+    background: #ffc107;
+}
+
+/* Host screen */
+
+.host-grid {
+    display: grid;
+    grid-template-columns: minmax(16rem, 22rem) 1fr;
+    gap: 2rem;
+}
+
+@media (max-width: 900px) {
+    .host-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.host-code {
+    font-size: 3.5rem;
+    font-weight: 800;
+}
+
+.qr svg {
+    width: 100%;
+    height: auto;
+    background: #fff;
+    border-radius: 0.5rem;
+}
+
+.player-list {
+    list-style: none;
+    padding: 0;
+    columns: 2;
+}
+
+.player-list li {
+    break-inside: avoid;
+}
+
+.board {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 4px;
+}
+
+.board-cell {
+    text-align: center;
+    padding: 0.4rem 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    border-radius: 0.35rem;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.board-cell.drawn {
+    background: #f8f9fa;
+    color: #12141a;
+}
+
+.board-cell.last {
+    background: #ffc107;
+}
+
+.host-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+}

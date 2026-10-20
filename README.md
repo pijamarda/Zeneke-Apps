@@ -5,7 +5,8 @@ One site, one sign-in, many little apps: parents sign in with Google, kids sign
 in with a username and a PIN they choose themselves, and every app on the site
 shares the same family accounts.
 
-Live at **https://apps.zeneke.com** (sign-in is limited to the family).
+Live at **https://apps.zeneke.com** (sign-in is limited to the family; Bingo is
+open to anyone, without signing in).
 
 ## Apps
 
@@ -13,9 +14,9 @@ Live at **https://apps.zeneke.com** (sign-in is limited to the family).
 |---|---|---|---|
 | **Fercoins** | `/fercoins/` | live | Parents reward (or deduct) points for chores; kids see their balance and history. |
 | **Family** | `/family/` | live | Parents create kid accounts, hand out one-time setup codes, reset PINs and unlock accounts. |
-| **Bingo** | `/bingo/` | planned | A simple bingo simulator. |
+| **Bingo** | `/bingo/` | live | Multiplayer Spanish 90-ball bingo (línea, then bingo). Anyone opens a room on a shared screen; others join from their phones by scanning its QR code. No sign-in. |
 
-The Fercoins and family pages are in Spanish; the rest of the site is in English.
+The Fercoins, family and Bingo pages are in Spanish; the rest of the site is in English.
 
 ## How sign-in works
 
@@ -53,7 +54,7 @@ The Fercoins and family pages are in Spanish; the rest of the site is in English
           |     core      home, family, kid PIN login,  |
           |               /healthz                      |
           |     fercoins  chores & points               |
-          |     bingo     (placeholder)                 |
+          |     bingo     public rooms, polling JSON    |
           |   WhiteNoise serves static files            |
           +------------+--------------------------------+
                        |
@@ -94,7 +95,7 @@ production.
 |       +-- backend/              Django project: settings, root URLs
 |       +-- core/                 home, family management, kid PIN login, /healthz
 |       +-- fercoins/             chores & points app
-|       +-- bingo/                bingo app (placeholder)
+|       +-- bingo/                bingo app (public rooms, no sign-in)
 |       +-- templates/, static/   shared Bootstrap layout and styles
 +-- Dockerfile                    one image for dev and production
 +-- docker-compose.yml            local development (runserver, live reload)
@@ -156,7 +157,6 @@ and a task list, and is archived once it ships.
 
 ## Roadmap
 
-- Bingo app
 - Deploys from GitHub Actions after each push to `main`
 - Off-server copies of the database backups
 - Moving from `apps.zeneke.com` to `zeneke.com`

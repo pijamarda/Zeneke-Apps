@@ -26,6 +26,22 @@ production mode and refuses to run without a real `SECRET_KEY` and `ALLOWED_HOST
   `/accounts/login/` and chooses their own 4-digit PIN. Parents can reset a PIN
   or unlock an account (5 wrong PINs lock it for 15 minutes) from `/family/`.
 
+### Bingo
+
+Bingo pages (`/bingo/`) are public: no sign-in is needed to create or join a
+room. The browser that creates a room is its host; players are remembered by
+their browser session. To try a game alone, open the host screen in one window
+and join from one or more private windows (each one is a different player).
+
+Rooms are deleted after a period without activity, and the number of rooms and
+players is capped. The limits are Django settings in `backend/settings.py`:
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `BINGO_ROOM_IDLE_HOURS` | `12` | hours without activity before a room expires |
+| `BINGO_MAX_ROOMS` | `50` | rooms that can exist at the same time |
+| `BINGO_MAX_PLAYERS` | `30` | players per room |
+
 ## Production environment
 
 Deploying to the VPS (Caddy, `deploy.sh`, backups): see [DEPLOY.md](../DEPLOY.md).

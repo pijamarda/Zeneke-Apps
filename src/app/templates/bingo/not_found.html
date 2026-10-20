@@ -1,0 +1,11 @@
+{% extends "bingo/base.html" %}
+
+{% block title %}Sala no encontrada — Bingo{% endblock %}
+
+{% block content %}
+<div class="bingo-narrow text-center">
+    <h1 class="h3 mb-3">Sala no encontrada o caducada</h1>
+    <p class="text-secondary">Puede que el código no sea correcto o que la sala lleve mucho tiempo sin actividad.</p>
+    <a href="{% url 'bingo:start' %}" class="btn btn-primary btn-lg">Volver al inicio</a>
+</div>
+{% endblock %}

@@ -193,6 +193,11 @@ STORAGES = {
     },
 }
 
+# Bingo: public rooms
+BINGO_ROOM_IDLE_HOURS = 12
+BINGO_MAX_ROOMS = 50
+BINGO_MAX_PLAYERS = 30
+
 LOGIN_REDIRECT_URL = 'core:home'
 LOGOUT_REDIRECT_URL = 'core:home'
 
