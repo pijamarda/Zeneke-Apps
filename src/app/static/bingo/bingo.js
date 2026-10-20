@@ -62,15 +62,52 @@
 
   // Shared rendering
 
+  // What the last render showed; null until the first render sets the baseline.
+  let renderedGameId = null;
+  let renderedCount = 0;
+
+  // Restart the CSS animation tied to .is-new, even on an element that already has it.
+  function playNew(node) {
+    if (!node) return;
+    node.classList.remove('is-new');
+    void node.offsetWidth;
+    node.classList.add('is-new');
+  }
+
+  document.addEventListener('animationend', (event) => event.target.classList.remove('is-new'));
+
+  function updateStripHint() {
+    const strip = $('drawn-strip');
+    if (!strip) return;
+    strip.classList.toggle('has-more', strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
+  }
+
+  function renderStrip(strip, sameGame) {
+    const count = state.drawn.length;
+    if (sameGame && count === renderedCount) return;
+    if (sameGame && count > renderedCount) {
+      let newest = null;
+      state.drawn.slice(renderedCount).forEach((n) => {
+        newest = el('span', 'ball ball-small', n);
+        strip.prepend(newest);
+      });
+      playNew(newest);
+      return;
+    }
+    strip.replaceChildren(...state.drawn.slice().reverse().map((n) => el('span', 'ball ball-small', n)));
+  }
+
   function renderBalls() {
+    const sameGame = renderedGameId === state.game_id;
+    const newBall = sameGame && state.drawn.length > renderedCount;
+
     $('last-ball').textContent = state.last === null ? '–' : state.last;
+    if (newBall) playNew($('last-ball'));
     $('stage-text').textContent = STAGE_TEXT[state.stage];
     $('drawn-count').textContent = state.drawn.length;
 
     const strip = $('drawn-strip');
-    if (strip) {
-      strip.replaceChildren(...state.drawn.slice().reverse().map((n) => el('span', 'ball ball-small', n)));
-    }
+    if (strip) renderStrip(strip, sameGame);
     const board = $('board');
     if (board) {
       const drawn = new Set(state.drawn);
@@ -78,9 +115,14 @@
         const n = Number(cell.dataset.number);
         cell.classList.toggle('drawn', drawn.has(n));
         cell.classList.toggle('last', n === state.last);
+        if (newBall && n === state.last) playNew(cell);
       });
       $('balls-left').textContent = state.balls_left;
     }
+
+    renderedGameId = state.game_id;
+    renderedCount = state.drawn.length;
+    updateStripHint();
   }
 
   function winnerList(items, withNumbers) {
@@ -311,6 +353,11 @@
   }
 
   if (role === 'host') setupHost(); else setupPlayer();
+  const strip = $('drawn-strip');
+  if (strip) {
+    strip.addEventListener('scroll', updateStripHint, { passive: true });
+    window.addEventListener('resize', updateStripHint);
+  }
   render();
   pollTimer = setTimeout(poll, POLL_MS);
 })();
