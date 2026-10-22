@@ -223,10 +223,10 @@ accepts a full commit hash on `origin/main`. The `from=` part makes the key
 work only from tailnet addresses.
 
 **5. Host key (server).** Collect the line CI will trust, and check that its
-fingerprint matches the server's own:
+fingerprint matches the server's own. `tailscale ip -4` shows the tailnet IP:
 
 ```
-ssh-keyscan -t ed25519 <vps-tailnet-name>
+ssh-keyscan -t ed25519 <vps-tailnet-ip>
 ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
@@ -239,7 +239,7 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 | `TS_OAUTH_SECRET` | from step 2 |
 | `DEPLOY_SSH_KEY` | contents of `zeneke-ci` (the private key) |
 | `DEPLOY_KNOWN_HOSTS` | the `ssh-keyscan` line from step 5 |
-| `DEPLOY_HOST` | the VPS's tailnet name |
+| `DEPLOY_HOST` | the VPS's tailnet IP, the same one used in step 5 |
 | `DEPLOY_USER` | the user from step 4 |
 
 Then delete the local `zeneke-ci` private key.
