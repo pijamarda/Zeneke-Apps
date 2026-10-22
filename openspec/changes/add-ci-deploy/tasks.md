@@ -18,7 +18,7 @@
 ## 3. Workflow
 
 - [x] 3.1 Add `.github/workflows/deploy.yml` with the triggers, permissions, `test` job and `deploy` job from design decision 5, with actions pinned to commit SHAs.
-- [ ] 3.2 Open the PR and check that the `test` job runs and passes on it, and that `deploy` is skipped.
+- [x] 3.2 Open the PR and check that the `test` job runs and passes on it, and that `deploy` is skipped.
 
 ## 4. Docs
 
