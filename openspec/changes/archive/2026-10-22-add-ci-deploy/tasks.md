@@ -1,12 +1,12 @@
 ## 1. One-time setup outside the repo (manual, before merging)
 
-- [ ] 1.1 Tailscale policy: add `tag:ci` to `tagOwners`, and a grant/ACL rule allowing `tag:ci` to reach only the VPS on `tcp:22`. Make sure no broader rule (such as default allow-all) covers `tag:ci`, and that no Tailscale SSH rule grants `tag:ci`.
-- [ ] 1.2 Tailscale admin console: create an OAuth client with the `auth_keys` write scope, limited to `tag:ci`. Keep its ID and secret for 1.6.
-- [ ] 1.3 On the dev machine, create the CI key without a passphrase: `ssh-keygen -t ed25519 -N "" -C zeneke-ci -f zeneke-ci`
-- [ ] 1.4 On the VPS, append the restricted line from design decision 3 (`DEPLOY.md`, "Automatic deploys", step 4) (with the real checkout path and `zeneke-ci.pub`) to `~/.ssh/authorized_keys` of the checkout owner.
-- [ ] 1.5 On the VPS, collect the host key for its tailnet IP: `ssh-keyscan -t ed25519 <tailnet-ip>`. Compare its fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`.
-- [ ] 1.6 GitHub: create the `production` environment, restricted to the `main` branch, with secrets `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `DEPLOY_SSH_KEY` (contents of `zeneke-ci`), `DEPLOY_KNOWN_HOSTS` (output of 1.5), `DEPLOY_HOST` (the same tailnet IP) and `DEPLOY_USER`. Then delete the local private key file.
-- [ ] 1.7 On the VPS, in the checkout, confirm the fetch is unattended: `git remote -v` shows an HTTPS URL (or a passphrase-less deploy key), and `env -u SSH_AUTH_SOCK git fetch origin main` succeeds without a prompt.
+- [x] 1.1 Tailscale policy: add `tag:ci` to `tagOwners`, and a grant/ACL rule allowing `tag:ci` to reach only the VPS on `tcp:22`. Make sure no broader rule (such as default allow-all) covers `tag:ci`, and that no Tailscale SSH rule grants `tag:ci`.
+- [x] 1.2 Tailscale admin console: create an OAuth client with the `auth_keys` write scope, limited to `tag:ci`. Keep its ID and secret for 1.6.
+- [x] 1.3 On the dev machine, create the CI key without a passphrase: `ssh-keygen -t ed25519 -N "" -C zeneke-ci -f zeneke-ci`
+- [x] 1.4 On the VPS, append the restricted line from design decision 3 (`DEPLOY.md`, "Automatic deploys", step 4) (with the real checkout path and `zeneke-ci.pub`) to `~/.ssh/authorized_keys` of the checkout owner.
+- [x] 1.5 On the VPS, collect the host key for its tailnet IP: `ssh-keyscan -t ed25519 <tailnet-ip>`. Compare its fingerprint with `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`.
+- [x] 1.6 GitHub: create the `production` environment, restricted to the `main` branch, with secrets `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `DEPLOY_SSH_KEY` (contents of `zeneke-ci`), `DEPLOY_KNOWN_HOSTS` (output of 1.5), `DEPLOY_HOST` (the same tailnet IP) and `DEPLOY_USER`. Then delete the local private key file.
+- [x] 1.7 On the VPS, in the checkout, confirm the fetch is unattended: `git remote -v` shows an HTTPS URL (or a passphrase-less deploy key), and `env -u SSH_AUTH_SOCK git fetch origin main` succeeds without a prompt.
 
 ## 2. Pin deploy.sh to a commit
 
@@ -27,4 +27,4 @@
 
 ## 5. First automatic deploy
 
-- [ ] 5.1 After merging, watch the run triggered by the merge: tests pass, the deploy log ends with `[deploy] deployed <sha>` matching the merge commit, and `https://apps.zeneke.com/healthz` answers `ok`.
+- [x] 5.1 After merging, watch the run triggered by the merge: tests pass, the deploy log ends with `[deploy] deployed <sha>` matching the merge commit, and `https://apps.zeneke.com/healthz` answers `ok`.

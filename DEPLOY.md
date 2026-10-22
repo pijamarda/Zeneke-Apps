@@ -282,6 +282,8 @@ env -u SSH_AUTH_SOCK git fetch origin main
 ### Day to day
 
 - **Deploy:** push or merge to `main`. Follow it in the repo's Actions tab.
+  Pushes that only change `openspec/` (proposals, archives) don't run tests or
+  deploy; anything else that lands with them does.
 - **Redeploy the current `main`:** Actions, **Test and deploy**, **Run workflow** on `main`.
 - **A failed run:** open the **deploy** job. The `[deploy]` lines are the
   script's output, and when the app didn't become healthy they end with its

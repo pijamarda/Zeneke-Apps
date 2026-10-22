@@ -1,12 +1,15 @@
 # Tests every pull request and push to main; deploys main to the VPS when they pass.
 # Setup and operation: DEPLOY.md, "Automatic deploys".
+# Changes that only touch OpenSpec planning files (proposals, archives) skip it.
 name: Test and deploy
 
 on:
   push:
     branches: [main]
+    paths-ignore: ["openspec/**"]
   pull_request:
     branches: [main]
+    paths-ignore: ["openspec/**"]
   workflow_dispatch:
 
 permissions:
