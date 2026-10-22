@@ -35,14 +35,15 @@ CI runs `ssh` to the VPS's tailnet name or `100.x` address, which reaches the no
 ### 3. The CI key is forced to `deploy.sh`
 On the VPS, the CI public key is added to the `authorized_keys` of the user who owns the checkout:
 ```
-command="/home/<user>/zeneke-apps/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty,no-user-rc ssh-ed25519 AAAA... zeneke-ci
+command="/home/<user>/zeneke-apps/deploy.sh --ssh",from="100.64.0.0/10,fd7a:115c:a1e0::/48",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty,no-user-rc ssh-ed25519 AAAA... zeneke-ci
 ```
-Optionally, add `from="100.64.0.0/10"` so the key only works from tailnet addresses. Whatever the client asks to run, sshd runs `deploy.sh` and puts the requested command line in `SSH_ORIGINAL_COMMAND`.
+The `from=` part limits the key to tailnet addresses (Tailscale's IPv4 and IPv6 ranges). Whatever the client asks to run, sshd runs `deploy.sh` and puts the requested command line in `SSH_ORIGINAL_COMMAND`.
 - CI pins the VPS host key: `known_hosts` comes from a secret, with `StrictHostKeyChecking=yes`. The value is collected once on the VPS with `ssh-keyscan` against its own tailnet name, and is checked against the server's fingerprint.
 - A dedicated `deploy` user isn't worth it here: it would need Docker access, which is root-equivalent anyway, plus ownership of the checkout. The forced command is the real boundary.
 
 ### 4. Deploy exactly the tested commit
-`deploy.sh` reads an optional target from `$1`, falling back to `SSH_ORIGINAL_COMMAND`. CI runs `ssh <host> "$GITHUB_SHA"`, which sshd hands over as `SSH_ORIGINAL_COMMAND`.
+`deploy.sh` reads an optional target from `$1`. Under the forced command it is started as `deploy.sh --ssh`, and then reads the target from `SSH_ORIGINAL_COMMAND`. CI runs `ssh <host> "$GITHUB_SHA"`, which sshd hands over as `SSH_ORIGINAL_COMMAND`.
+- The explicit `--ssh` matters. sshd sets `SSH_ORIGINAL_COMMAND` for every key, so reading it unconditionally would break `ssh vps ./deploy.sh` run with the owner's normal key (the target would become `./deploy.sh`).
 - **Validation (preflight, before anything changes):** the target must match `^[0-9a-f]{40}$`. Anything else, such as `bash` or a path, fails with a message. That keeps the forced command from being turned into anything other than a deploy.
 - **After `git fetch origin main`:** the target must be an ancestor of, or equal to, `origin/main` (`git merge-base --is-ancestor`), otherwise the script fails. If the target is already contained in `HEAD`, the checkout is left alone. Otherwise the script runs `git merge --ff-only <target>`.
 - With no target, the behaviour is the same as today (`origin/main`), so manual runs are unchanged.
