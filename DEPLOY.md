@@ -187,7 +187,8 @@ push to main --> test job --pass--> deploy job --tailnet, ssh--> VPS: deploy.sh 
 ### One-time setup
 
 **1. Tailscale policy** (admin console, Access controls). Let `tag:ci` reach
-only the VPS's SSH port. Adapt the VPS name or tag to your policy:
+only the VPS's SSH port (`22`, or `2222` if you use Tailscale SSH, see below).
+Adapt the VPS name or tag to your policy:
 
 ```
 "tagOwners": { "tag:ci": ["autogroup:admin"] },
@@ -197,9 +198,28 @@ only the VPS's SSH port. Adapt the VPS name or tag to your policy:
 ```
 
 If your policy still has the default allow-all rule, narrow it so it doesn't
-cover `tag:ci`. Use plain sshd, not Tailscale SSH: Tailscale SSH ignores
-`authorized_keys`, so the restriction below wouldn't apply. Don't give `tag:ci`
-any entry in the policy's `ssh` section.
+cover `tag:ci`. CI must reach plain sshd, not Tailscale SSH: Tailscale SSH
+ignores `authorized_keys`, so the restriction below wouldn't apply. Don't give
+`tag:ci` any entry in the policy's `ssh` section.
+
+**If Tailscale SSH is on for the VPS** (`tailscale up --ssh`), it takes over port
+22 on the tailnet address, and CI fails with "tailnet policy does not permit
+you to SSH to this node". Keep it for your own logins, and have sshd also
+listen on port 2222 for CI (server):
+
+```
+sudo nano /etc/ssh/sshd_config      # next to any "Port" line, or at the top: Port 22 and Port 2222
+sudo sshd -t                         # no output = config is valid
+sudo systemctl daemon-reload
+systemctl is-active ssh.socket       # "active": sudo systemctl restart ssh.socket
+                                     # otherwise: sudo systemctl restart ssh
+ss -ltn | grep 2222                  # sshd is listening
+```
+
+Keep `Port 22` as well, so normal SSH keeps working. Don't open 2222 in the
+Oracle security list or the host firewall: CI reaches it over the tailnet only.
+Grant `tcp:2222` instead of `tcp:22` in the policy above, use `-p 2222` in step 5,
+and set `DEPLOY_PORT` in step 6.
 
 **2. Tailscale OAuth client** (Settings, OAuth clients): scope **Auth keys:
 write**, tag `tag:ci`. Keep the client ID and secret for step 6.
@@ -230,6 +250,10 @@ ssh-keyscan -t ed25519 <vps-tailnet-ip>
 ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
+With port 2222, run `ssh-keyscan -p 2222 -t ed25519 <vps-tailnet-ip>`; its line
+starts with `[<vps-tailnet-ip>]:2222`, which is what CI needs. Don't scan port 22
+while Tailscale SSH is on: that returns Tailscale's key, not sshd's.
+
 **6. GitHub** (repo Settings, Environments): create an environment named
 `production`, set **Deployment branches** to `main` only, and add these secrets:
 
@@ -241,6 +265,9 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 | `DEPLOY_KNOWN_HOSTS` | the `ssh-keyscan` line from step 5 |
 | `DEPLOY_HOST` | the VPS's tailnet IP, the same one used in step 5 |
 | `DEPLOY_USER` | the user from step 4 |
+
+With sshd on port 2222, also add a **variable** (Variables tab of the same
+environment) `DEPLOY_PORT` = `2222`. Without it CI uses port 22.
 
 Then delete the local `zeneke-ci` private key.
 

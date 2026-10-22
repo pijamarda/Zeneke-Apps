@@ -31,6 +31,7 @@ The deploy job uses the official `tailscale/github-action` with a Tailscale **OA
 
 ### 2. Plain sshd on the tailnet address, not Tailscale SSH
 CI runs `ssh` to the VPS's tailnet name or `100.x` address, which reaches the normal OpenSSH server. **Tailscale SSH must not be used for this connection**: it authenticates by tailnet identity and ignores `authorized_keys`, so the forced command would not apply. If Tailscale SSH is enabled on the VPS, the policy's `ssh` section must not grant `tag:ci`.
+- Tailscale SSH, when on, owns port 22 on the tailnet address (found on the first real run). The owner keeps it for their own logins, so sshd also listens on port 2222, reachable only over the tailnet. The workflow takes the port from the `DEPLOY_PORT` environment variable (default 22), and the host key is scanned on that port.
 
 ### 3. The CI key is forced to `deploy.sh`
 On the VPS, the CI public key is added to the `authorized_keys` of the user who owns the checkout:
