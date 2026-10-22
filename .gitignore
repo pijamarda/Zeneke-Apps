@@ -33,9 +33,12 @@ src/app/media/
 .DS_Store
 Thumbs.db
 
-# Claude
-
-.claude/
+# Claude (local files stay private; shared skills, commands and hooks are tracked)
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+!.claude/commands/
 
 # Deploy (VPS)
 backups/
