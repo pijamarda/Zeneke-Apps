@@ -111,6 +111,7 @@ user and tick **Superuser status** and **Staff status**.
 | Task | Command (server) |
 |---|---|
 | Deploy latest `main` | `./deploy.sh` |
+| Deploy a specific commit on `main` | `./deploy.sh <full-commit-hash>` (never moves back to an older commit) |
 | Logs | `docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod logs -f web` |
 | Backup now | `./backup.sh` (keeps 14; `BACKUP_KEEP=30 ./backup.sh` to keep more) |
 | Status | `docker compose -p zeneke-prod -f docker-compose.prod.yml --env-file .env.prod ps` |
@@ -160,20 +161,104 @@ docker logout ghcr.io
 If you do need that login for another project, log in again with a valid token
 (`docker login ghcr.io`) instead of logging out.
 
+### A CI deploy fails with "another deploy is already running"
+
+A manual `./deploy.sh` was running at the same time. Wait for it to finish,
+then use **Re-run jobs** on the failed run.
+
 ### `deploy.sh` refuses with "uncommitted changes in the checkout"
 
 The server checkout must only ever be updated by `deploy.sh`. Run
 `git status --short` to see what changed; undo it with `git checkout -- <file>`,
 or commit the change on your dev machine and push it.
 
-## Later: deploy from GitHub Actions
+## Automatic deploys
 
-`deploy.sh` needs no changes. Give CI its own SSH key, stored as a GitHub
-secret, and restrict it on the VPS in `~/.ssh/authorized_keys` so it can only
-deploy:
+Every push to `main` runs the tests on GitHub Actions and, if they pass,
+deploys **that exact commit** (`.github/workflows/deploy.yml`). Pull requests
+run the tests only. The runner joins your tailnet for the length of the job
+and SSHs to the VPS's tailnet address, so public SSH can stay IP-filtered.
+Its key can only run `deploy.sh`.
 
 ```
-command="/home/<user>/zeneke-apps/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA... zeneke-ci
+push to main --> test job --pass--> deploy job --tailnet, ssh--> VPS: deploy.sh <commit>
 ```
 
-The workflow then runs the tests and `ssh <user>@<vps>` after each push to `main`.
+### One-time setup
+
+**1. Tailscale policy** (admin console, Access controls). Let `tag:ci` reach
+only the VPS's SSH port. Adapt the VPS name or tag to your policy:
+
+```
+"tagOwners": { "tag:ci": ["autogroup:admin"] },
+"grants": [
+  { "src": ["tag:ci"], "dst": ["<vps-tailnet-name-or-tag>"], "ip": ["tcp:22"] }
+]
+```
+
+If your policy still has the default allow-all rule, narrow it so it doesn't
+cover `tag:ci`. Use plain sshd, not Tailscale SSH: Tailscale SSH ignores
+`authorized_keys`, so the restriction below wouldn't apply. Don't give `tag:ci`
+any entry in the policy's `ssh` section.
+
+**2. Tailscale OAuth client** (Settings, OAuth clients): scope **Auth keys:
+write**, tag `tag:ci`. Keep the client ID and secret for step 6.
+
+**3. CI key** (dev machine):
+
+```
+ssh-keygen -t ed25519 -N "" -C zeneke-ci -f zeneke-ci
+```
+
+**4. Restrict the key (server).** Append this line, on one line, with the
+public key from `zeneke-ci.pub` and your checkout path, to
+`~/.ssh/authorized_keys` of the user who owns the checkout:
+
+```
+command="/home/<user>/zeneke-apps/deploy.sh --ssh",from="100.64.0.0/10,fd7a:115c:a1e0::/48",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty,no-user-rc ssh-ed25519 AAAA... zeneke-ci
+```
+
+Whatever the client asks to run, sshd runs `deploy.sh --ssh`, which only
+accepts a full commit hash on `origin/main`. The `from=` part makes the key
+work only from tailnet addresses.
+
+**5. Host key (server).** Collect the line CI will trust, and check that its
+fingerprint matches the server's own. `tailscale ip -4` shows the tailnet IP:
+
+```
+ssh-keyscan -t ed25519 <vps-tailnet-ip>
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+**6. GitHub** (repo Settings, Environments): create an environment named
+`production`, set **Deployment branches** to `main` only, and add these secrets:
+
+| Secret | Value |
+|---|---|
+| `TS_OAUTH_CLIENT_ID` | from step 2 |
+| `TS_OAUTH_SECRET` | from step 2 |
+| `DEPLOY_SSH_KEY` | contents of `zeneke-ci` (the private key) |
+| `DEPLOY_KNOWN_HOSTS` | the `ssh-keyscan` line from step 5 |
+| `DEPLOY_HOST` | the VPS's tailnet IP, the same one used in step 5 |
+| `DEPLOY_USER` | the user from step 4 |
+
+Then delete the local `zeneke-ci` private key.
+
+**7. Unattended fetch (server).** `deploy.sh` runs `git fetch` with no agent and
+no terminal. In the checkout, `git remote -v` should show the HTTPS URL, and
+this must succeed without a prompt:
+
+```
+env -u SSH_AUTH_SOCK git fetch origin main
+```
+
+### Day to day
+
+- **Deploy:** push or merge to `main`. Follow it in the repo's Actions tab.
+- **Redeploy the current `main`:** Actions, **Test and deploy**, **Run workflow** on `main`.
+- **A failed run:** open the **deploy** job. The `[deploy]` lines are the
+  script's output, and when the app didn't become healthy they end with its
+  logs. Fix forward or revert on `main`; either push deploys again.
+- **Switch it off:** Actions, **Test and deploy**, **Disable workflow**. Or
+  remove the `zeneke-ci` line from `authorized_keys`. Manual `./deploy.sh`
+  keeps working either way.

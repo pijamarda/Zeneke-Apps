@@ -1,0 +1,70 @@
+# Tests every pull request and push to main; deploys main to the VPS when they pass.
+# Setup and operation: DEPLOY.md, "Automatic deploys".
+name: Test and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DEBUG: "true"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          working-directory: src
+          enable-cache: true
+      - name: Install dependencies
+        working-directory: src
+        run: uv sync --locked
+      - name: Run tests
+        working-directory: src/app
+        run: uv run --project .. python manage.py test
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    # One deploy at a time. A running deploy is never cancelled; a newer push
+    # replaces a deploy that is still waiting.
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Join the tailnet
+        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ci
+      - name: Configure SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+      - name: Deploy ${{ github.sha }}
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        # The server's authorized_keys forces deploy.sh; the commit is its only input.
+        run: >-
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes
+          -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4
+          "$DEPLOY_USER@$DEPLOY_HOST" "$GITHUB_SHA"
