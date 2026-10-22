@@ -63,8 +63,10 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          # Set when Tailscale SSH owns port 22 on the VPS (DEPLOY.md).
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
         # The server's authorized_keys forces deploy.sh; the commit is its only input.
         run: >-
           ssh -o BatchMode=yes -o StrictHostKeyChecking=yes
           -o ConnectTimeout=30 -o ServerAliveInterval=15 -o ServerAliveCountMax=4
-          "$DEPLOY_USER@$DEPLOY_HOST" "$GITHUB_SHA"
+          -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" "$GITHUB_SHA"
