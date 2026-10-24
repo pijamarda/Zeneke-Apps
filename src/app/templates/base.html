@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="es" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,17 +48,17 @@
                     </span>
                     <form method="post" action="{% url 'account_logout' %}" class="m-0">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                        <button type="submit" class="btn btn-outline-light btn-sm">Salir</button>
                     </form>
                 {% else %}
-                    <a href="{% url 'account_login' %}" class="btn btn-primary btn-sm">Login</a>
+                    <a href="{% url 'account_login' %}" class="btn btn-primary btn-sm">Entrar</a>
                 {% endif %}
             </div>
         </div>
     </div>
 </nav>
 
-<main class="container py-4">
+<main class="{% block main_class %}container py-4{% endblock %}">
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">

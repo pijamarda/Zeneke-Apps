@@ -1,24 +1,57 @@
 {% extends "base.html" %}
 
-{% block title %}Home — Zeneke{% endblock %}
+{% block title %}Inicio — Zeneke{% endblock %}
 
 {% block content %}
 <div class="py-4">
-    <h1 class="display-5 fw-bold mb-1">Zeneke</h1>
-    <p class="mb-4">Personal apps collection.</p>
+    <h1 class="display-5 fw-bold mb-1">
+        {% if user.is_authenticated %}Hola, {{ user.username }}{% else %}Zeneke{% endif %}
+    </h1>
+    <p class="mb-4">
+        {% if user.is_authenticated %}¿Qué te apetece hacer hoy?{% else %}Bienvenido a las apps de la familia.{% endif %}
+    </p>
 
     <div class="row g-3">
         <div class="col-12 col-sm-6 col-md-4">
-            <a href="/bingo/" class="text-decoration-none">
+            <a href="{% url 'fercoins:dashboard' %}" class="text-decoration-none">
                 <div class="card h-100 border-secondary-subtle app-card">
                     <div class="card-body">
-                        <div class="fs-2 mb-2">🎱</div>
-                        <h5 class="card-title">Bingo</h5>
-                        <p class="card-text small">Play bingo with friends.</p>
+                        <div class="fs-2 mb-2">🪙</div>
+                        <h5 class="card-title">Fercoins</h5>
+                        <p class="card-text small">Gana fercoins haciendo tareas en casa.</p>
+                        {% if not user.is_authenticated %}
+                            <span class="badge text-bg-secondary"><i class="bi bi-lock me-1"></i>Necesitas iniciar sesión</span>
+                        {% endif %}
                     </div>
                 </div>
             </a>
         </div>
+
+        <div class="col-12 col-sm-6 col-md-4">
+            <a href="{% url 'bingo:start' %}" class="text-decoration-none">
+                <div class="card h-100 border-secondary-subtle app-card">
+                    <div class="card-body">
+                        <div class="fs-2 mb-2">🎱</div>
+                        <h5 class="card-title">Bingo</h5>
+                        <p class="card-text small">Juega al bingo con amigos.</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        {% if user.is_superuser %}
+            <div class="col-12 col-sm-6 col-md-4">
+                <a href="{% url 'core:family' %}" class="text-decoration-none">
+                    <div class="card h-100 border-secondary-subtle app-card">
+                        <div class="card-body">
+                            <div class="fs-2 mb-2">👨‍👩‍👧‍👦</div>
+                            <h5 class="card-title">Familia</h5>
+                            <p class="card-text small">Cuentas de los niños y sus PIN.</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

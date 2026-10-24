@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% comment %}
+Replaces allauth's unstyled base so every allauth page (provider confirmation,
+cancelled, error, logout, social signup) uses the site layout.
+{% endcomment %}
+
+{% block title %}{% block head_title %}{% endblock %} — Zeneke{% endblock %}
+
+{% block main_class %}container py-4 auth-page{% endblock %}

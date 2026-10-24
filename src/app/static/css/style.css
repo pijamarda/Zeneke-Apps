@@ -31,3 +31,18 @@ main {
     display: flex;
     align-items: center;
 }
+
+/* allauth pages (sign-in confirmation, cancelled, error, logout) */
+.auth-page {
+    max-width: 30rem;
+}
+
+.auth-page input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(.form-control) {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    color: var(--bs-body-color);
+    background-color: var(--bs-body-bg);
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+}
