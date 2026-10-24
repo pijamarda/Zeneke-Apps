@@ -135,8 +135,8 @@ class KidLoginViewTests(TestCase):
 
     def test_login_page_has_both_options_and_no_usernames(self):
         response = self.client.get(reverse('account_login'))
-        self.assertContains(response, 'Continue with Google')
-        self.assertContains(response, 'Continue with GitHub')
+        self.assertContains(response, 'Continuar con Google')
+        self.assertContains(response, 'Continuar con GitHub')
         self.assertContains(response, self.url)
         self.assertNotContains(response, 'leo')
 
@@ -297,6 +297,78 @@ class KidChangePinTests(TestCase):
     def test_navbar_link_only_for_kids(self):
         self.assertContains(self.client.get('/'), self.url)
         self.assertNotContains(Client().get('/'), self.url)
+
+
+class SocialSignInTests(TestCase):
+    def test_provider_buttons_are_post_forms(self):
+        response = self.client.get(reverse('account_login'))
+        for provider in ('google', 'github'):
+            with self.subTest(provider=provider):
+                self.assertContains(
+                    response, f'<form method="post" action="{reverse(f"{provider}_login")}"', html=False
+                )
+
+    def test_provider_forms_keep_next(self):
+        response = self.client.get(reverse('account_login'), {'next': '/fercoins/'})
+        self.assertContains(response, f'action="{reverse("google_login")}?next=%2Ffercoins%2F"')
+
+    def test_post_goes_straight_to_provider(self):
+        response = self.client.post(reverse('google_login'))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response['Location'].startswith('https://accounts.google.com/'))
+
+    def test_get_shows_styled_confirmation_page(self):
+        response = self.client.get(reverse('google_login'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('Location', response)
+        self.assertContains(response, 'navbar')
+        self.assertContains(response, 'class="btn btn-primary"')
+        self.assertNotContains(response, 'Menu:')
+
+    def test_cancelled_page_uses_site_layout(self):
+        response = self.client.get(reverse('socialaccount_login_cancelled'))
+        self.assertContains(response, 'navbar')
+        self.assertContains(response, reverse('account_login'))
+        self.assertNotContains(response, 'Menu:')
+
+    def test_logout_confirmation_uses_site_layout(self):
+        make_kid('leo', '1234')
+        self.client.post(reverse('core:kid_login'), {'username': 'leo', 'code': '1234'})
+        response = self.client.get(reverse('account_logout'))
+        self.assertContains(response, 'navbar')
+        self.assertContains(response, 'class="btn btn-primary"')
+        self.assertNotContains(response, 'Menu:')
+
+
+class HomePageTests(TestCase):
+    def home(self, client=None):
+        return (client or self.client).get(reverse('core:home'))
+
+    def test_anonymous_sees_app_cards_and_sign_in_note(self):
+        response = self.home()
+        self.assertContains(response, reverse('bingo:start'))
+        self.assertContains(response, reverse('fercoins:dashboard'))
+        self.assertContains(response, 'Necesitas iniciar sesión')
+        self.assertContains(response, 'Bienvenido')
+        self.assertNotContains(response, 'Hola,')
+        self.assertNotContains(response, reverse('core:family'))
+
+    def test_kid_sees_cards_and_greeting(self):
+        make_kid('leo', '1234')
+        self.client.post(reverse('core:kid_login'), {'username': 'leo', 'code': '1234'})
+        response = self.home()
+        self.assertContains(response, reverse('bingo:start'))
+        self.assertContains(response, reverse('fercoins:dashboard'))
+        self.assertNotContains(response, 'Necesitas iniciar sesión')
+        self.assertContains(response, 'Hola, leo')
+        self.assertNotContains(response, reverse('core:family'))
+
+    def test_parent_sees_family_card(self):
+        self.client.force_login(User.objects.create_superuser('mama', password='strong-pass-123'))
+        response = self.home()
+        self.assertContains(response, 'Hola, mama')
+        self.assertContains(response, '<h5 class="card-title">Familia</h5>', html=True)
+        self.assertContains(response, reverse('core:family'))
 
 
 class FamilyManagementTests(TestCase):
