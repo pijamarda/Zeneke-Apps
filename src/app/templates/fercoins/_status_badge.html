@@ -1,0 +1,1 @@
+<span class="badge {% if item.status == 'approved' %}text-bg-success{% elif item.status == 'rejected' %}text-bg-danger{% elif item.status == 'cancelled' %}text-bg-dark border border-secondary-subtle{% else %}text-bg-secondary{% endif %}">{{ item.get_status_display }}</span>

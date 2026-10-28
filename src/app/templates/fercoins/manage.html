@@ -6,8 +6,16 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2 class="mb-0">Miembros de la familia</h2>
     <div class="d-flex gap-2">
+        {% if pending_count %}
+            <a href="{% url 'fercoins:review' %}" class="btn btn-warning btn-sm">
+                <i class="bi bi-bell me-1"></i>Pendientes ({{ pending_count }})
+            </a>
+        {% endif %}
         <a href="{% url 'fercoins:chores' %}" class="btn btn-outline-light btn-sm">
             <i class="bi bi-list-check me-1"></i>Tareas
+        </a>
+        <a href="{% url 'fercoins:prizes' %}" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-gift me-1"></i>Premios
         </a>
         <a href="{% url 'fercoins:give' %}" class="btn btn-primary btn-sm">
             <i class="bi bi-plus-circle me-1"></i>Dar fercoins

@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import Chore, FercoinTransaction
+from .models import Chore, FercoinTransaction, Prize
 
 User = get_user_model()
 
@@ -48,5 +48,23 @@ class ChoreForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
             'fercoins': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
+class PrizeForm(forms.ModelForm):
+    class Meta:
+        model = Prize
+        fields = ['name', 'description', 'cost', 'is_active']
+        labels = {
+            'name': 'Nombre',
+            'description': 'Descripción',
+            'cost': 'Coste',
+            'is_active': 'Activo',
+        }
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'cost': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
