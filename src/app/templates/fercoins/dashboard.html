@@ -10,9 +10,114 @@
                 <p class="text-white-50 mb-1 small text-uppercase">Tu saldo</p>
                 <div class="display-3 fw-bold">{{ balance }}</div>
                 <p class="mt-1 mb-0">🪙 fercoins</p>
+                {% if is_kid %}
+                    <p class="mt-2 mb-0 text-white-50">Disponible: <span class="fw-bold text-white">{{ available }}</span></p>
+                {% endif %}
             </div>
         </div>
     </div>
+
+    {% if is_kid %}
+    <div class="col-12 col-lg-6">
+        <h5 class="mb-3"><i class="bi bi-list-check me-1"></i>Tareas para ganar fercoins</h5>
+        {% if chores %}
+            <div class="list-group">
+                {% for chore in chores %}
+                    <div class="list-group-item bg-transparent border-secondary-subtle">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="fw-semibold">{{ chore.name }}</div>
+                                {% if chore.description %}<small class="text-white-50">{{ chore.description }}</small>{% endif %}
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                <span class="fw-bold text-success">+{{ chore.fercoins }} 🪙</span>
+                                {% if chore.is_pending %}
+                                    <span class="badge text-bg-secondary">Pendiente</span>
+                                {% else %}
+                                    <form method="post" action="{% url 'fercoins:chore_claim' chore.pk %}" class="m-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success btn-sm">¡Lo hice!</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-white-50">Todavía no hay tareas.</p>
+        {% endif %}
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <h5 class="mb-3"><i class="bi bi-gift me-1"></i>Premios</h5>
+        {% if prizes %}
+            <div class="list-group">
+                {% for prize in prizes %}
+                    <div class="list-group-item bg-transparent border-secondary-subtle">
+                        <div class="d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                                <div class="fw-semibold">{{ prize.name }}</div>
+                                {% if prize.description %}<small class="text-white-50">{{ prize.description }}</small>{% endif %}
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                                <span class="fw-bold text-warning">{{ prize.cost }} 🪙</span>
+                                {% if prize.missing %}
+                                    <span class="badge text-bg-dark border border-secondary-subtle">Te faltan {{ prize.missing }}</span>
+                                {% else %}
+                                    <form method="post" action="{% url 'fercoins:prize_request' prize.pk %}" class="m-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-warning btn-sm">Lo quiero</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-white-50">Todavía no hay premios.</p>
+        {% endif %}
+    </div>
+
+    {% if claims or prize_requests %}
+    <div class="col-12">
+        <h5 class="mb-3">Mis solicitudes</h5>
+        <div class="list-group list-group-flush">
+            {% for request_ in prize_requests %}
+                <div class="list-group-item bg-transparent border-secondary-subtle px-0">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <div>
+                            <div class="fw-semibold"><i class="bi bi-gift me-1"></i>{{ request_.prize.name }} <span class="text-warning">{{ request_.amount }} 🪙</span></div>
+                            <small class="text-white-50">{{ request_.created_at|date:"d/m/Y H:i" }}{% if request_.reason %} · {{ request_.reason }}{% endif %}</small>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            {% include "fercoins/_status_badge.html" with item=request_ %}
+                            {% if request_.is_pending %}
+                                <form method="post" action="{% url 'fercoins:request_cancel' request_.pk %}" class="m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Cancelar</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+            {% for claim in claims %}
+                <div class="list-group-item bg-transparent border-secondary-subtle px-0">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <div>
+                            <div class="fw-semibold"><i class="bi bi-list-check me-1"></i>{{ claim.chore.name }} <span class="text-success">+{{ claim.amount }} 🪙</span></div>
+                            <small class="text-white-50">{{ claim.created_at|date:"d/m/Y H:i" }}{% if claim.reason %} · {{ claim.reason }}{% endif %}</small>
+                        </div>
+                        {% include "fercoins/_status_badge.html" with item=claim %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
 
     <div class="col-12">
         <h5 class="mb-3">Historial de transacciones</h5>

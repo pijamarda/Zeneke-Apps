@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Fercoins — Pendientes{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center gap-2 mb-4">
+    <a href="{% url 'fercoins:manage' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i>
+    </a>
+    <h2 class="mb-0">Pendientes de revisar</h2>
+</div>
+
+{% if items %}
+    <div class="list-group">
+        {% for kind, item in items %}
+            <div class="list-group-item bg-transparent border-secondary-subtle">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div>
+                        <div class="fw-semibold">
+                            {{ item.kid.username }} ·
+                            {% if kind == 'claim' %}
+                                <i class="bi bi-list-check me-1"></i>{{ item.chore.name }}
+                                <span class="text-success">+{{ item.amount }} 🪙</span>
+                            {% else %}
+                                <i class="bi bi-gift me-1"></i>Premio «{{ item.prize.name }}»
+                                <span class="text-warning">-{{ item.amount }} 🪙</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-white-50">
+                            {{ item.created_at|date:"d/m/Y H:i" }}
+                            {% if kind == 'request' %} · saldo actual: {{ item.kid_balance }} 🪙{% endif %}
+                        </small>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <form method="post" action="{% url 'fercoins:review_action' kind item.pk 'approve' %}" class="m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success btn-sm">Aprobar</button>
+                        </form>
+                        <form method="post" action="{% url 'fercoins:review_action' kind item.pk 'reject' %}" class="m-0 d-flex gap-2">
+                            {% csrf_token %}
+                            <input type="text" name="reason" maxlength="200" class="form-control form-control-sm" placeholder="Motivo (opcional)">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">Rechazar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-white-50">No hay nada que revisar.</p>
+{% endif %}
+{% endblock %}

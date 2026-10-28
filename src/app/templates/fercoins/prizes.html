@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Fercoins — Premios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex align-items-center gap-2">
+        <a href="{% url 'fercoins:manage' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i>
+        </a>
+        <h2 class="mb-0">Catálogo de premios</h2>
+    </div>
+    <a href="{% url 'fercoins:prize_create' %}" class="btn btn-primary btn-sm">
+        <i class="bi bi-plus-circle me-1"></i>Nuevo premio
+    </a>
+</div>
+
+<h6 class="text-white-50 mb-2">Activos</h6>
+{% if active %}
+    <div class="list-group mb-4">
+        {% for prize in active %}
+            <div class="list-group-item bg-transparent border-secondary-subtle">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="fw-semibold">{{ prize.name }}</span>
+                        {% if prize.description %}
+                            <small class="text-white-50 ms-2">{{ prize.description }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold text-warning">{{ prize.cost }} 🪙</span>
+                        <a href="{% url 'fercoins:prize_edit' prize.pk %}" class="btn btn-outline-secondary btn-sm">Editar</a>
+                        <form method="post" action="{% url 'fercoins:prize_toggle' prize.pk %}" class="m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">Desactivar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-white-50 mb-4">Sin premios activos.</p>
+{% endif %}
+
+{% if inactive %}
+    <h6 class="text-white-50 mb-2">Inactivos</h6>
+    <div class="list-group">
+        {% for prize in inactive %}
+            <div class="list-group-item bg-transparent border-secondary-subtle opacity-50">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span>{{ prize.name }}</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <span>{{ prize.cost }} 🪙</span>
+                        <form method="post" action="{% url 'fercoins:prize_toggle' prize.pk %}" class="m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-secondary btn-sm">Activar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+{% endblock %}
