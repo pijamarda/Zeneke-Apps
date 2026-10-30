@@ -239,7 +239,7 @@ def state(request, room):
 @with_room
 @host_only
 def host(request, room):
-    qr_svg = segno.make(_join_url(request, room), error='m').svg_inline(scale=8, border=2)
+    qr_svg = segno.make(_join_url(request, room), error='m').svg_inline(scale=8, border=2, omitsize=True)
     return render(request, 'bingo/host.html', {
         'room': room,
         'join_url': _join_url(request, room),

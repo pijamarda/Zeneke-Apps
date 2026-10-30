@@ -396,9 +396,23 @@ class HostOnlyTests(BingoClientTestCase):
         response = self.client.get(self.url('host', self.room))
         join_url = 'http://testserver' + self.url('room', self.room)
         self.assertEqual(response.context['join_url'], join_url)
-        expected = segno.make(join_url, error='m').svg_inline(scale=8, border=2)
+        expected = segno.make(join_url, error='m').svg_inline(scale=8, border=2, omitsize=True)
         self.assertEqual(response.context['qr_svg'], expected)
         self.assertContains(response, expected)
+
+    def test_sound_controls_only_on_the_host_screen(self):
+        host_page = self.client.get(self.url('host', self.room))
+        self.assertContains(host_page, 'id="sound-toggle"')
+        self.assertContains(host_page, 'id="ball-sound"')
+        player_page = self.ana.get(self.url('room', self.room))
+        self.assertEqual(player_page.status_code, 200)
+        self.assertNotContains(player_page, 'id="sound-toggle"')
+        self.assertNotContains(player_page, 'id="ball-sound"')
+
+    def test_qr_scales_to_its_frame(self):
+        qr_svg = self.client.get(self.url('host', self.room)).context['qr_svg']
+        self.assertIn('viewBox=', qr_svg)
+        self.assertNotIn('width=', qr_svg)
 
     def test_host_also_plays(self):
         _, response = self.join(self.room, 'Host', client=self.client)

@@ -18,6 +18,27 @@ body.bingo {
     text-decoration: none;
 }
 
+.host-header-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.host-header-controls .form-check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding-left: 0;
+    margin-right: 0;
+}
+
+.host-header-controls .form-check-input {
+    float: none;
+    margin: 0;
+}
+
 .bingo-main {
     padding: 1rem;
     max-width: 1400px;
