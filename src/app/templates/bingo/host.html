@@ -5,7 +5,14 @@
 {% block body_class %}bingo-host{% endblock %}
 
 {% block header_extra %}
-<a href="{% url 'bingo:room' room.code %}" class="btn btn-outline-light btn-sm" target="_blank" rel="noopener">Jugar yo también</a>
+<div class="host-header-controls">
+    <button type="button" class="btn btn-outline-light btn-sm" id="sound-toggle" aria-pressed="false">🔇 Activar sonido</button>
+    <label class="form-check form-check-inline small mb-0" for="ball-sound">
+        <input class="form-check-input" type="checkbox" id="ball-sound">
+        <span class="form-check-label">Sonido de bola</span>
+    </label>
+    <a href="{% url 'bingo:room' room.code %}" class="btn btn-outline-light btn-sm" target="_blank" rel="noopener">Jugar yo también</a>
+</div>
 {% endblock %}
 
 {% block content %}

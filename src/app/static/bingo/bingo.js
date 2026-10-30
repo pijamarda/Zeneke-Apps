@@ -103,6 +103,7 @@
 
     $('last-ball').textContent = state.last === null ? '–' : state.last;
     if (newBall) playNew($('last-ball'));
+    if (newBall && role === 'host') announceBall(state.last);
     $('stage-text').textContent = STAGE_TEXT[state.stage];
     $('drawn-count').textContent = state.drawn.length;
 
@@ -239,6 +240,254 @@
     });
   }
 
+  // Sound (host screen only)
+
+  const SOUND_KEY = 'bingo.sound';
+  const BALL_SOUND_KEY = 'bingo.ballSound';
+  const CALL = { rate: 0.9, gapParts: 100, gapDigits: 200 };
+  const UNITS = ['cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve'];
+  const TEENS = ['diez', 'once', 'doce', 'trece', 'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve'];
+  const TWENTIES = ['veinte', 'veintiuno', 'veintidós', 'veintitrés', 'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+  const TENS = { 3: 'treinta', 4: 'cuarenta', 5: 'cincuenta', 6: 'sesenta', 7: 'setenta', 8: 'ochenta', 9: 'noventa' };
+
+  let soundOn = false;
+  let ballSoundOn = false;
+  let audioCtx = null;
+  let master = null;
+  let noiseBuffer = null;
+  let callId = 0;
+  // Last pause that had its win sound; undefined until the first render sets the baseline.
+  let soundedPause;
+
+  function numberName(n) {
+    if (n < 10) return UNITS[n];
+    if (n < 20) return TEENS[n - 10];
+    if (n < 30) return TWENTIES[n - 20];
+    const unit = n % 10;
+    return unit === 0 ? TENS[Math.floor(n / 10)] : TENS[Math.floor(n / 10)] + ' y ' + UNITS[unit];
+  }
+
+  function readSetting(key) {
+    try { return window.localStorage.getItem(key) === 'on'; } catch (e) { return false; }
+  }
+
+  function saveSetting(key, on) {
+    try { window.localStorage.setItem(key, on ? 'on' : 'off'); } catch (e) { /* storage blocked */ }
+  }
+
+  function audioReady() {
+    return soundOn && audioCtx !== null && audioCtx.state === 'running';
+  }
+
+  // Must run inside a user gesture the first time, or the browser keeps audio blocked.
+  function unlockAudio() {
+    if (!audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return Promise.resolve();
+      audioCtx = new Ctx();
+      audioCtx.addEventListener('statechange', renderSoundToggle);
+    }
+    return audioCtx.state === 'running' ? Promise.resolve() : audioCtx.resume().catch(() => {});
+  }
+
+  function output() {
+    if (!master) {
+      master = audioCtx.createGain();
+      master.connect(audioCtx.destination);
+    }
+    return master;
+  }
+
+  function stopSound() {
+    callId += 1;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (master) { master.disconnect(); master = null; }
+  }
+
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function spanishVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const voices = window.speechSynthesis.getVoices();
+    const lang = (v) => v.lang.replace('_', '-').toLowerCase();
+    return voices.find((v) => lang(v) === 'es-es') || voices.find((v) => lang(v).startsWith('es')) || null;
+  }
+
+  function say(text, voice) {
+    return new Promise((resolve) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.voice = voice;
+      utterance.lang = voice.lang;
+      utterance.rate = CALL.rate;
+      utterance.onend = resolve;
+      utterance.onerror = resolve;
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+
+  // Speaks the parts in order; stops as soon as a newer call starts.
+  async function speakParts(parts, gaps, id) {
+    const voice = spanishVoice();
+    if (!voice) return;
+    for (let i = 0; i < parts.length; i += 1) {
+      if (gaps[i]) await wait(gaps[i]);
+      if (id !== callId) return;
+      await say(parts[i], voice);
+    }
+  }
+
+  async function callBall(n) {
+    callId += 1;
+    const id = callId;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (ballSoundOn) {
+      playPop();
+      await wait(150);
+      if (id !== callId) return;
+    }
+    const parts = n < 10 ? [numberName(n)] : [numberName(n), UNITS[Math.floor(n / 10)], UNITS[n % 10]];
+    await speakParts(parts, [0, CALL.gapParts, CALL.gapDigits], id);
+  }
+
+  function tone(freq, start, duration, type, volume) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(volume, start + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+    osc.connect(gain).connect(output());
+    osc.start(start);
+    osc.stop(start + duration + 0.05);
+  }
+
+  function playBeep() {
+    const now = audioCtx.currentTime;
+    tone(660, now, 0.15, 'sine', 0.3);
+    tone(880, now + 0.17, 0.2, 'sine', 0.3);
+  }
+
+  function playPop() {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.frequency.setValueAtTime(900, now);
+    osc.frequency.exponentialRampToValueAtTime(180, now + 0.12);
+    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+    osc.connect(gain).connect(output());
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
+  // Many short filtered noise bursts at random times sound like a crowd clapping.
+  function playApplause(start, duration) {
+    if (!noiseBuffer) {
+      noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate, audioCtx.sampleRate);
+      const data = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) data[i] = Math.random() * 2 - 1;
+    }
+    const claps = Math.round(duration * 35);
+    for (let i = 0; i < claps; i += 1) {
+      const at = Math.random() * duration;
+      const loudness = Math.min(1, at / 0.3, (duration - at) / (duration * 0.4));
+      const t = start + at;
+      const src = audioCtx.createBufferSource();
+      const filter = audioCtx.createBiquadFilter();
+      const gain = audioCtx.createGain();
+      src.buffer = noiseBuffer;
+      filter.type = 'bandpass';
+      filter.frequency.value = 900 + Math.random() * 1600;
+      filter.Q.value = 1.2;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(Math.max(0.001, 0.5 * loudness), t + 0.003);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05 + Math.random() * 0.06);
+      src.connect(filter).connect(gain).connect(output());
+      src.start(t, Math.random() * 0.8, 0.15);
+    }
+  }
+
+  function playFanfare(start) {
+    [[523.25, 0, 0.18], [659.25, 0.18, 0.18], [783.99, 0.36, 0.18], [1046.5, 0.54, 0.7]].forEach(([freq, at, length]) => {
+      tone(freq, start + at, length, 'triangle', 0.35);
+      tone(freq * 2, start + at, length, 'sine', 0.08);
+    });
+  }
+
+  function playWin(prize) {
+    const now = audioCtx.currentTime;
+    if (prize === 'bingo') {
+      playFanfare(now);
+      playApplause(now + 0.9, 4);
+    } else {
+      playApplause(now, 2.5);
+    }
+  }
+
+  function playTest() {
+    stopSound();
+    playBeep();
+    const id = callId;
+    wait(450).then(() => speakParts(['Sonido activado'], [0], id));
+  }
+
+  function announceBall(n) {
+    if (audioReady()) callBall(n);
+  }
+
+  function checkWinSound() {
+    const key = state.pause ? state.game_id + ':' + state.pause.prize : null;
+    if (soundedPause === undefined) { soundedPause = key; return; }
+    if (key === null || key === soundedPause) return;
+    soundedPause = key;
+    if (audioReady()) playWin(state.pause.prize);
+  }
+
+  function renderSoundToggle() {
+    const button = $('sound-toggle');
+    const playing = audioReady();
+    if (!soundOn) button.textContent = '🔇 Activar sonido';
+    else if (playing) button.textContent = '🔊 Sonido activado';
+    else button.textContent = '🔈 Toca para activar sonido';
+    button.setAttribute('aria-pressed', playing ? 'true' : 'false');
+    button.classList.toggle('btn-light', playing);
+    button.classList.toggle('btn-outline-light', !playing);
+  }
+
+  function setupSound() {
+    soundOn = readSetting(SOUND_KEY);
+    ballSoundOn = readSetting(BALL_SOUND_KEY);
+    $('ball-sound').checked = ballSoundOn;
+    renderSoundToggle();
+
+    $('sound-toggle').addEventListener('click', async () => {
+      if (audioReady()) {
+        soundOn = false;
+        saveSetting(SOUND_KEY, false);
+        stopSound();
+        renderSoundToggle();
+        return;
+      }
+      soundOn = true;
+      saveSetting(SOUND_KEY, true);
+      await unlockAudio();
+      renderSoundToggle();
+      if (audioReady()) playTest();
+    });
+
+    $('ball-sound').addEventListener('change', (event) => {
+      ballSoundOn = event.target.checked;
+      saveSetting(BALL_SOUND_KEY, ballSoundOn);
+    });
+
+    // Any tap on the page (such as "Sacar bola") unlocks sound that was left on before a reload.
+    document.addEventListener('pointerdown', (event) => {
+      if (!soundOn || audioReady() || event.target.closest('#sound-toggle')) return;
+      unlockAudio().then(renderSoundToggle);
+    });
+  }
+
   // Host
 
   function renderPlayers() {
@@ -278,12 +527,14 @@
 
   function renderHost() {
     renderPlayers();
+    checkWinSound();
     $('draw-btn').disabled = !state.can_draw;
     $('auto-select').value = state.auto_interval ? String(state.auto_interval) : 'off';
     scheduleAutoDraw();
   }
 
   function setupHost() {
+    setupSound();
     $('draw-btn').addEventListener('click', drawBall);
 
     $('continue-btn').addEventListener('click', async () => {
