@@ -12,6 +12,7 @@ urlpatterns = [
     path('r/<str:code>/state/', views.state, name='state'),
     path('r/<str:code>/mark/', views.mark, name='mark'),
     path('r/<str:code>/claim/', views.claim, name='claim'),
+    path('r/<str:code>/cards/', views.card_count, name='cards'),
     path('r/<str:code>/host/', views.host, name='host'),
     path('r/<str:code>/draw/', views.draw, name='draw'),
     path('r/<str:code>/continue/', views.continue_game, name='continue'),

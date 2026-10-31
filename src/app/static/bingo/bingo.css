@@ -167,6 +167,23 @@ body.bingo {
     color: #fff;
 }
 
+/* Two cards: smaller cells so both cards and the claim buttons fit on a phone. */
+.bingo-cards.two .cell {
+    height: 2.6rem;
+    font-size: 1.1rem;
+}
+
+.card-label {
+    margin: 0.5rem 0 0.1rem 3px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.card-label:first-child {
+    margin-top: 0;
+}
+
 .claim-buttons {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -306,6 +323,12 @@ body.bingo {
 
 .player-list li {
     break-inside: avoid;
+}
+
+.card-tag {
+    font-size: 0.85em;
+    font-weight: 700;
+    color: #ffc107;
 }
 
 .board {

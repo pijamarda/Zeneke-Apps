@@ -33,7 +33,7 @@
 
             <h2 class="h5 mt-4">Jugadores (<span id="player-count">{{ state.players|length }}</span>)</h2>
             <ul class="player-list" id="players">
-                {% for p in state.players %}<li>{{ p.nickname }}</li>{% endfor %}
+                {% for p in state.players %}<li><span>{{ p.nickname }}{% if p.cards > 1 %} <span class="card-tag">×{{ p.cards }}</span>{% endif %}</span></li>{% endfor %}
             </ul>
         </section>
 

@@ -9,7 +9,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from . import rules
-from .models import CODE_ALPHABET, Card, Game, Player, Room, deal_card
+from .models import CODE_ALPHABET, Card, Game, Player, Room, deal_cards
 from .rules import BINGO, FINISHED, LINEA, WAITING, GameState
 
 T0 = datetime(2026, 10, 20, 20, 0, tzinfo=dt_timezone.utc)
@@ -162,11 +162,30 @@ class ModelTests(TestCase):
         leo = Player.objects.create(room=room, nickname='Leo', nickname_key='leo')
         grids = [sample_grid(), sample_grid(), rules.generate_card(random.Random(5))]
         with mock.patch('bingo.models.rules.generate_card', side_effect=lambda _rng: grids.pop(0)):
-            first = deal_card(room.game, ana)
-            second = deal_card(room.game, leo)
+            [first] = deal_cards(room.game, ana)
+            [second] = deal_cards(room.game, leo)
         self.assertNotEqual(first.numbers_key, second.numbers_key)
-        self.assertEqual(deal_card(room.game, ana), first)
+        self.assertEqual(deal_cards(room.game, ana), [first])
 
+
+    def test_two_cards_for_one_player_are_distinct(self):
+        room = Room.create_with_game()
+        ana = Player.objects.create(room=room, nickname='Ana', nickname_key='ana', card_count=2)
+        grids = [sample_grid(), sample_grid(), rules.generate_card(random.Random(5))]
+        with mock.patch('bingo.models.rules.generate_card', side_effect=lambda _rng: grids.pop(0)):
+            first, second = deal_cards(room.game, ana)
+        self.assertEqual((first.position, second.position), (0, 1))
+        self.assertNotEqual(first.numbers_key, second.numbers_key)
+
+    def test_dealing_again_creates_nothing_and_lowering_the_count_drops_card_two(self):
+        room = Room.create_with_game()
+        ana = Player.objects.create(room=room, nickname='Ana', nickname_key='ana', card_count=2)
+        cards = deal_cards(room.game, ana)
+        self.assertEqual(deal_cards(room.game, ana), cards)
+        self.assertEqual(Card.objects.count(), 2)
+        ana.card_count = 1
+        self.assertEqual(deal_cards(room.game, ana), cards[:1])
+        self.assertEqual(list(Card.objects.values_list('position', flat=True)), [0])
 
 class BingoClientTestCase(TestCase):
     """Helpers that play as several browsers (one Django test client each)."""
@@ -178,17 +197,20 @@ class BingoClientTestCase(TestCase):
         self.assertRedirects(response, reverse('bingo:host', args=[room.code]))
         return room
 
-    def join(self, room, nickname, client=None):
+    def join(self, room, nickname, client=None, cards=None):
         client = client or Client()
-        response = client.post(reverse('bingo:join', args=[room.code]), {'nickname': nickname})
+        data = {'nickname': nickname}
+        if cards is not None:
+            data['cards'] = cards
+        response = client.post(reverse('bingo:join', args=[room.code]), data)
         return client, response
 
     def player(self, room, nickname):
         return Player.objects.get(room=room, nickname=nickname)
 
-    def give_card(self, room, nickname, grid=None):
+    def give_card(self, room, nickname, grid=None, position=0):
         grid = grid or sample_grid()
-        Card.objects.filter(player=self.player(room, nickname)).update(
+        Card.objects.filter(player=self.player(room, nickname), position=position).update(
             grid=grid, numbers_key=rules.numbers_key(grid), marks=[]
         )
 
@@ -207,10 +229,15 @@ class BingoClientTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         return response.json()
 
-    def mark(self, room, client, numbers, marked=True):
+    def mark(self, room, client, numbers, marked=True, card=0):
         for n in numbers:
-            response = client.post(self.url('mark', room), {'number': n, 'marked': '1' if marked else '0'})
+            response = client.post(
+                self.url('mark', room), {'number': n, 'marked': '1' if marked else '0', 'card': card}
+            )
             self.assertEqual(response.status_code, 200, response.content)
+
+    def marks(self, room, client, card=0):
+        return self.state(room, client)['me']['cards'][card]['marks']
 
     def claim(self, room, client, prize):
         return client.post(self.url('claim', room), {'prize': prize})
@@ -306,7 +333,7 @@ class JoinTests(BingoClientTestCase):
         client, _ = self.join(self.room, 'Late')
         state = self.state(self.room, client)
         self.assertEqual(state['drawn'], drawn)
-        self.assertIsNotNone(state['me']['card'])
+        self.assertEqual(len(state['me']['cards']), 1)
 
     def test_empty_nickname(self):
         _, response = self.join(self.room, '   ')
@@ -491,23 +518,23 @@ class DrawTests(GameTestCase):
     def test_drawn_numbers_are_not_marked_for_players(self):
         self.playing(drawn=ROW2)
         self.draw()
-        self.assertEqual(self.state(self.room, self.ana)['me']['marks'], [])
+        self.assertEqual(self.marks(self.room, self.ana), [])
 
 
 class MarkTests(GameTestCase):
     def test_mark_drawn_and_undrawn_numbers(self):
         self.playing(drawn=[47])
         self.mark(self.room, self.ana, [47, 3])
-        self.assertEqual(self.state(self.room, self.ana)['me']['marks'], [3, 47])
+        self.assertEqual(self.marks(self.room, self.ana), [3, 47])
 
     def test_unmark(self):
         self.mark(self.room, self.ana, [47])
         self.mark(self.room, self.ana, [47], marked=False)
-        self.assertEqual(self.state(self.room, self.ana)['me']['marks'], [])
+        self.assertEqual(self.marks(self.room, self.ana), [])
 
     def test_marking_twice_is_idempotent(self):
         self.mark(self.room, self.ana, [47, 47])
-        self.assertEqual(self.state(self.room, self.ana)['me']['marks'], [47])
+        self.assertEqual(self.marks(self.room, self.ana), [47])
 
     def test_number_not_on_card(self):
         response = self.ana.post(self.url('mark', self.room), {'number': 50, 'marked': '1'})
@@ -515,8 +542,8 @@ class MarkTests(GameTestCase):
 
     def test_only_own_card_changes(self):
         self.mark(self.room, self.leo, [14])
-        self.assertEqual(self.state(self.room, self.ana)['me']['marks'], [])
-        self.assertEqual(self.state(self.room, self.leo)['me']['marks'], [14])
+        self.assertEqual(self.marks(self.room, self.ana), [])
+        self.assertEqual(self.marks(self.room, self.leo), [14])
 
     def test_stranger_cannot_mark(self):
         response = Client().post(self.url('mark', self.room), {'number': 14, 'marked': '1'})
@@ -526,7 +553,7 @@ class MarkTests(GameTestCase):
         self.playing(stage=rules.FINISHED)
         response = self.ana.post(self.url('mark', self.room), {'number': 14, 'marked': '1'})
         self.assertEqual(response.status_code, 409)
-        self.assertEqual(self.state(self.room, self.ana)['me']['marks'], [])
+        self.assertEqual(self.marks(self.room, self.ana), [])
 
 
 class ClaimTests(GameTestCase):
@@ -699,7 +726,7 @@ class StateTests(GameTestCase):
     def test_player_view_has_only_their_card(self):
         state = self.state(self.room, self.ana)
         self.assertEqual(set(state), {'game_id', 'stage', 'drawn', 'last', 'balls_left', 'pause', 'winners', 'me'})
-        self.assertEqual(state['me']['card'], sample_grid())
+        self.assertEqual(state['me']['cards'], [{'position': 0, 'grid': sample_grid(), 'marks': []}])
 
     def test_stranger_gets_no_state(self):
         self.assertEqual(Client().get(self.url('state', self.room)).status_code, 403)
@@ -719,8 +746,8 @@ class NewGameAndRemoveTests(GameTestCase):
         self.assertEqual(Room.objects.get(pk=self.room.pk).code, self.room.code)
         state = self.state(self.room, self.ana)
         self.assertEqual(state['game_id'], game.pk)
-        self.assertEqual(state['me']['marks'], [])
-        self.assertIsNotNone(state['me']['card'])
+        self.assertEqual(len(state['me']['cards']), 1)
+        self.assertEqual(state['me']['cards'][0]['marks'], [])
         self.assertEqual(game.cards.count(), 2)
 
     def test_remove_player(self):
@@ -773,3 +800,195 @@ class ActivityTests(GameTestCase):
         self.assertEqual(Room.objects.get(pk=self.room.pk).last_activity_at, old)
         with self.at(timezone.now() + timedelta(hours=2)):
             self.assertEqual(self.ana.get(self.url('state', self.room)).status_code, 404)
+
+
+EVA_CARD0 = [
+    [1, None, 20, None, 40, None, 60, None, 80],
+    [None, 10, None, 30, 47, None, None, 70, 81],
+    [2, None, 22, 31, None, 50, None, 72, None],
+]
+EVA_ROW0 = [10, 30, 47, 70, 81]
+
+
+def eva_card1():
+    grid = [row[:] for row in sample_grid()]
+    grid[0][0] = 5  # distinct from Ana's and Leo's cards, same second row (ROW2)
+    return grid
+
+
+class TwoCardTestCase(GameTestCase):
+    """GameTestCase plus Eva, who plays with 2 cards: EVA_CARD0 and eva_card1()."""
+
+    def setUp(self):
+        super().setUp()
+        self.eva, _ = self.join(self.room, 'Eva', cards='2')
+        self.give_card(self.room, 'Eva', EVA_CARD0, position=0)
+        self.give_card(self.room, 'Eva', eva_card1(), position=1)
+
+    def set_count(self, client, count):
+        return client.post(self.url('cards', self.room), {'count': count})
+
+
+class TwoCardJoinTests(BingoClientTestCase):
+    def setUp(self):
+        self.room = self.create_room()
+
+    def test_join_with_two_cards(self):
+        client, response = self.join(self.room, 'Leo', cards='2')
+        self.assertRedirects(response, self.url('room', self.room))
+        cards = self.state(self.room, client)['me']['cards']
+        self.assertEqual([c['position'] for c in cards], [0, 1])
+        self.assertNotEqual(rules.card_numbers(cards[0]['grid']), rules.card_numbers(cards[1]['grid']))
+        self.assertEqual(self.state(self.room, client)['me']['card_count'], 2)
+
+    def test_join_without_a_choice_gives_one_card(self):
+        client, _ = self.join(self.room, 'Ana')
+        self.assertEqual(len(self.state(self.room, client)['me']['cards']), 1)
+        client, _ = self.join(self.room, 'Leo', cards='7')
+        self.assertEqual(len(self.state(self.room, client)['me']['cards']), 1)
+
+    def test_join_with_two_cards_after_the_game_has_started(self):
+        self.set_game(self.room, stage=rules.LINEA, drawn=list(range(1, 21)))
+        client, _ = self.join(self.room, 'Late', cards='2')
+        state = self.state(self.room, client)
+        self.assertEqual(len(state['me']['cards']), 2)
+        self.assertEqual(len(state['drawn']), 20)
+
+    def test_form_keeps_the_choice_after_an_error(self):
+        _, response = self.join(self.room, '  ', cards='2')
+        self.assertContains(response, 'value="2" checked', status_code=400)
+        _, response = self.join(self.room, '  ')
+        self.assertContains(response, 'value="1" checked', status_code=400)
+
+    def test_join_form_offers_one_or_two_cards(self):
+        page = Client().get(self.url('room', self.room))
+        self.assertContains(page, '1 cartón')
+        self.assertContains(page, '2 cartones')
+
+
+class TwoCardStateTests(TwoCardTestCase):
+    def test_new_game_keeps_the_number_of_cards(self):
+        old = {c.pk for c in Card.objects.filter(player__nickname='Eva')}
+        self.client.post(self.url('new_game', self.room))
+        new = Card.objects.filter(player__nickname='Eva')
+        self.assertEqual(sorted(c.position for c in new), [0, 1])
+        self.assertFalse(old & {c.pk for c in new})
+        self.assertTrue(all(c.marks == [] for c in new))
+
+    def test_host_sees_the_number_of_cards(self):
+        players = self.state(self.room, self.client, host=True)['players']
+        self.assertEqual({p['nickname']: p['cards'] for p in players}, {'Ana': 1, 'Leo': 1, 'Eva': 2})
+        page = self.client.get(self.url('host', self.room))
+        self.assertContains(page, 'Eva <span class="card-tag">×2</span>', html=False)
+        self.assertNotContains(page, 'Ana <span class="card-tag">')
+
+    def test_player_page_shows_both_cards_with_labels(self):
+        page = self.eva.get(self.url('room', self.room))
+        self.assertContains(page, 'data-card="0"')
+        self.assertContains(page, 'data-card="1"')
+        self.assertContains(page, 'Cartón 1')
+        self.assertContains(page, 'Cartón 2')
+        one = self.ana.get(self.url('room', self.room))
+        self.assertContains(one, 'data-card="0"')
+        self.assertNotContains(one, 'data-card="1"')
+        self.assertNotContains(one, 'Cartón 1')
+
+
+class TwoCardMarkTests(TwoCardTestCase):
+    def test_marks_belong_to_one_card(self):
+        self.mark(self.room, self.eva, [47], card=1)
+        self.assertEqual(self.marks(self.room, self.eva, card=0), [])
+        self.assertEqual(self.marks(self.room, self.eva, card=1), [47])
+        self.mark(self.room, self.eva, [47], card=0)
+        self.mark(self.room, self.eva, [47], marked=False, card=1)
+        self.assertEqual(self.marks(self.room, self.eva, card=0), [47])
+        self.assertEqual(self.marks(self.room, self.eva, card=1), [])
+
+    def test_unknown_card_is_refused(self):
+        response = self.eva.post(self.url('mark', self.room), {'number': 47, 'marked': '1', 'card': 5})
+        self.assertEqual(response.status_code, 400)
+        response = self.ana.post(self.url('mark', self.room), {'number': 47, 'marked': '1', 'card': 1})
+        self.assertEqual(response.status_code, 400)
+
+    def test_other_players_cards_do_not_change(self):
+        self.mark(self.room, self.ana, [14])
+        self.assertEqual(self.marks(self.room, self.eva, card=0), [])
+        self.assertEqual(self.marks(self.room, self.eva, card=1), [])
+
+
+class TwoCardClaimTests(TwoCardTestCase):
+    def test_linea_on_the_second_card(self):
+        self.playing(drawn=ROW2)
+        self.mark(self.room, self.eva, ROW2, card=1)
+        response = self.claim(self.room, self.eva, 'linea')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['state']['winners']['linea'], [{'nickname': 'Eva', 'numbers': ROW2}])
+        self.assertEqual(self.game(self.room).claims.get().position, 1)
+
+    def test_row_split_across_cards_is_invalid(self):
+        self.playing(drawn=ROW2)
+        self.mark(self.room, self.eva, [47], card=0)
+        self.mark(self.room, self.eva, [14, 33, 71, 90], card=1)
+        response = self.claim(self.room, self.eva, 'linea')
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()['message'], 'Esa línea no es válida. Revisa tu cartón.')
+
+    def test_bingo_on_the_second_card(self):
+        numbers = rules.card_numbers(eva_card1())
+        self.playing(stage=rules.BINGO, drawn=numbers)
+        self.mark(self.room, self.eva, numbers, card=1)
+        response = self.claim(self.room, self.eva, 'bingo')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['state']['winners']['bingo'], [{'nickname': 'Eva', 'numbers': numbers}])
+
+    def test_both_cards_win_once(self):
+        self.playing(drawn=ROW2 + EVA_ROW0)
+        self.mark(self.room, self.eva, EVA_ROW0, card=0)
+        self.mark(self.room, self.eva, ROW2, card=1)
+        self.assertEqual(self.claim(self.room, self.eva, 'linea').status_code, 200)
+        self.assertEqual(self.claim(self.room, self.eva, 'linea').status_code, 200)
+        winners = self.state(self.room, self.client, host=True)['winners']['linea']
+        self.assertEqual(winners, [{'nickname': 'Eva', 'numbers': EVA_ROW0}])
+
+
+class CardCountTests(TwoCardTestCase):
+    def test_add_a_second_card_before_the_start(self):
+        self.mark(self.room, self.ana, [3])
+        response = self.set_count(self.ana, 2)
+        self.assertEqual(response.status_code, 200)
+        cards = response.json()['state']['me']['cards']
+        self.assertEqual(len(cards), 2)
+        self.assertEqual((cards[0]['grid'], cards[0]['marks']), (sample_grid(), [3]))
+        self.assertEqual(self.state(self.room, self.client, host=True)['players'][0]['cards'], 2)
+
+    def test_back_to_one_card(self):
+        self.mark(self.room, self.eva, [47], card=0)
+        response = self.set_count(self.eva, 1)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['state']['me']['cards'],
+                         [{'position': 0, 'grid': EVA_CARD0, 'marks': [47]}])
+
+    def test_refused_once_the_game_started(self):
+        self.draw()
+        response = self.set_count(self.ana, 2)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('La partida ya ha empezado', response.json()['message'])
+        self.assertEqual(Card.objects.filter(player__nickname='Ana').count(), 1)
+        self.assertEqual(self.player(self.room, 'Ana').card_count, 1)
+
+    def test_bad_values(self):
+        for value in ('0', '3', 'dos', ''):
+            self.assertEqual(self.set_count(self.ana, value).status_code, 400, value)
+        self.assertEqual(Card.objects.filter(player__nickname='Ana').count(), 1)
+
+    def test_strangers_and_removed_players(self):
+        self.assertEqual(self.set_count(Client(), 2).status_code, 403)
+        self.client.post(self.url('remove', self.room, self.player(self.room, 'Leo').pk))
+        self.assertEqual(self.set_count(self.leo, 2).status_code, 403)
+
+    def test_allowed_again_in_a_new_game(self):
+        self.playing(stage=rules.FINISHED, drawn=[1, 2])
+        self.assertEqual(self.set_count(self.ana, 2).status_code, 409)
+        self.client.post(self.url('new_game', self.room))
+        self.assertEqual(self.set_count(self.ana, 2).status_code, 200)
+        self.assertEqual(Card.objects.filter(player__nickname='Ana').count(), 2)

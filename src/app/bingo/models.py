@@ -10,6 +10,7 @@ from . import rules
 CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 CODE_LENGTH = 5
 NICKNAME_MAX_LENGTH = 20
+MAX_CARDS = 2
 AUTO_INTERVALS = (5, 8, 10, 15, 20)
 
 rng = secrets.SystemRandom()
@@ -106,6 +107,7 @@ class Player(models.Model):
     nickname = models.CharField(max_length=NICKNAME_MAX_LENGTH)
     nickname_key = models.CharField(max_length=NICKNAME_MAX_LENGTH)
     removed = models.BooleanField(default=False)
+    card_count = models.PositiveSmallIntegerField(default=1)
     joined_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
@@ -121,43 +123,51 @@ class Player(models.Model):
 class Card(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='cards')
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='cards')
+    position = models.PositiveSmallIntegerField(default=0)
     grid = models.JSONField()
     marks = models.JSONField(default=list)
     numbers_key = models.CharField(max_length=60)
 
     class Meta:
+        ordering = ['position']
         constraints = [
             models.UniqueConstraint(fields=['game', 'numbers_key'], name='bingo_unique_card_per_game'),
-            models.UniqueConstraint(fields=['game', 'player'], name='bingo_one_card_per_player'),
+            models.UniqueConstraint(fields=['game', 'player', 'position'], name='bingo_one_card_per_position'),
         ]
 
     def numbers(self):
         return rules.card_numbers(self.grid)
 
 
-def deal_card(game, player):
-    """Give the player a card for this game, distinct from the others in it."""
-    existing = Card.objects.filter(game=game, player=player).first()
-    if existing:
-        return existing
+def _deal_card(game, player, position):
+    """Give the player a card at this position, distinct from every other card in the game."""
     for _ in range(50):
+        existing = Card.objects.filter(game=game, player=player, position=position).first()
+        if existing:
+            return existing
         grid = rules.generate_card(rng)
         try:
             with transaction.atomic():
                 return Card.objects.create(
-                    game=game, player=player, grid=grid, numbers_key=rules.numbers_key(grid)
+                    game=game, player=player, position=position,
+                    grid=grid, numbers_key=rules.numbers_key(grid),
                 )
         except IntegrityError:
-            existing = Card.objects.filter(game=game, player=player).first()
-            if existing:
-                return existing
+            continue
     raise RuntimeError('Could not deal a distinct card')
+
+
+def deal_cards(game, player):
+    """Make the player's cards in this game match their card_count; returns them in order."""
+    Card.objects.filter(game=game, player=player, position__gte=player.card_count).delete()
+    return [_deal_card(game, player, position) for position in range(player.card_count)]
 
 
 class Claim(models.Model):
     game = models.ForeignKey(Game, on_delete=models.CASCADE, related_name='claims')
     player = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='claims')
     prize = models.CharField(max_length=10, choices=Game.PRIZE_CHOICES)
+    position = models.PositiveSmallIntegerField(default=0)
     row = models.PositiveSmallIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 

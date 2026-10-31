@@ -13,7 +13,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
 from . import game, rules
-from .models import AUTO_INTERVALS, NICKNAME_MAX_LENGTH, Player, Room, deal_card
+from .models import AUTO_INTERVALS, MAX_CARDS, NICKNAME_MAX_LENGTH, Player, Room, deal_cards
 
 HOST_KEY = 'bingo_host'
 PLAYERS_KEY = 'bingo_players'
@@ -116,19 +116,22 @@ def _player_page(request, room, player):
     if player.removed:
         return render(request, 'bingo/removed.html', {'room': room}, status=403)
     state = game.state_payload(room, player=player)
-    marks = set(state['me']['marks'])
-    card_rows = [
-        [{'number': n, 'marked': n in marks} for n in row] for row in state['me']['card'] or []
-    ]
+    cards = []
+    for card in state['me']['cards']:
+        marks = set(card['marks'])
+        rows = [[{'number': n, 'marked': n in marks} for n in row] for row in card['grid']]
+        cards.append({'position': card['position'], 'label': card['position'] + 1, 'rows': rows})
     return render(request, 'bingo/player.html', {
-        'room': room, 'player': player, 'state': state, 'card_rows': card_rows,
+        'room': room, 'player': player, 'state': state, 'cards': cards,
+        'card_choices': range(1, MAX_CARDS + 1),
     })
 
 
-def _join_form(request, room, nickname='', message=None, status=200):
+def _join_form(request, room, nickname='', card_count=1, message=None, status=200):
     return render(request, 'bingo/join.html', {
         'room': room, 'nickname': nickname, 'message': message,
         'max_length': NICKNAME_MAX_LENGTH,
+        'card_count': card_count, 'card_choices': range(1, MAX_CARDS + 1),
     }, status=status)
 
 
@@ -149,21 +152,26 @@ def join(request, room):
         return redirect('bingo:room', code=room.code)
 
     nickname = request.POST.get('nickname', '').strip()
+    card_count = 2 if request.POST.get('cards') == '2' else 1
     if not nickname:
-        return _join_form(request, room, nickname, 'Escribe un nombre para jugar.', status=400)
+        return _join_form(request, room, nickname, card_count, 'Escribe un nombre para jugar.', status=400)
     if len(nickname) > NICKNAME_MAX_LENGTH:
         return _join_form(
-            request, room, nickname,
+            request, room, nickname, card_count,
             f'El nombre puede tener como máximo {NICKNAME_MAX_LENGTH} caracteres.', status=400,
         )
     if room.players.filter(removed=False).count() >= settings.BINGO_MAX_PLAYERS:
-        return _join_form(request, room, nickname, 'La sala está llena.', status=409)
+        return _join_form(request, room, nickname, card_count, 'La sala está llena.', status=409)
     try:
         with transaction.atomic():
-            player = Player.objects.create(room=room, nickname=nickname, nickname_key=nickname.lower())
-            deal_card(room.game, player)
+            player = Player.objects.create(
+                room=room, nickname=nickname, nickname_key=nickname.lower(), card_count=card_count
+            )
+            deal_cards(room.game, player)
     except IntegrityError:
-        return _join_form(request, room, nickname, 'Ese nombre ya está en uso en esta sala.', status=409)
+        return _join_form(
+            request, room, nickname, card_count, 'Ese nombre ya está en uso en esta sala.', status=409
+        )
     _remember_player(request, room, player)
     room.touch()
     return redirect('bingo:room', code=room.code)
@@ -184,6 +192,7 @@ def mark(request, room):
         return HttpResponseForbidden('No estás jugando en esta sala.')
     try:
         number = int(request.POST.get('number', ''))
+        position = int(request.POST.get('card', '0'))
     except ValueError:
         return JsonResponse({'ok': False, 'message': 'Número no válido.'}, status=400)
     marked = request.POST.get('marked') == '1'
@@ -191,7 +200,7 @@ def mark(request, room):
     with transaction.atomic():
         # Write first to take SQLite's lock, so two quick taps don't overwrite each other.
         player.cards.update(marks=F('marks'))
-        card = player.cards.select_related('game').first()
+        card = player.cards.select_related('game').filter(position=position).first()
         if card is None or number not in card.numbers():
             return JsonResponse({'ok': False, 'message': 'Ese número no está en tu cartón.'}, status=400)
         state, _ = card.game.settled(timezone.now())
@@ -219,6 +228,26 @@ def claim(request, room):
         game.claim(room, player, prize)
     except game.Refused as exc:
         return _refused(exc)
+    return JsonResponse({'ok': True, 'state': game.state_payload(room, player=player)})
+
+
+@require_POST
+@with_room
+def card_count(request, room):
+    player = _active_player(request, room)
+    if player is None:
+        return HttpResponseForbidden('No estás jugando en esta sala.')
+    try:
+        count = int(request.POST.get('count', ''))
+    except ValueError:
+        count = 0
+    if not 1 <= count <= MAX_CARDS:
+        return JsonResponse({'ok': False, 'message': 'Número de cartones no válido.'}, status=400)
+    try:
+        game.set_card_count(room, player, count)
+    except game.Refused as exc:
+        return _refused(exc)
+    player.refresh_from_db()
     return JsonResponse({'ok': True, 'state': game.state_payload(room, player=player)})
 
 
