@@ -6,7 +6,7 @@ from django.db.models import F
 from django.utils import timezone
 
 from . import rules
-from .models import Card, Claim, Game, Room, deal_card, rng
+from .models import Card, Claim, Game, Room, deal_cards, rng
 
 REFUSALS = {
     'waiting': 'La partida aún no ha empezado.',
@@ -18,6 +18,7 @@ REFUSALS = {
     'invalid_linea': 'Esa línea no es válida. Revisa tu cartón.',
     'invalid_bingo': 'Ese bingo no es válido. Revisa tu cartón.',
     'retry': 'Inténtalo de nuevo.',
+    'started': 'La partida ya ha empezado. Podrás cambiar los cartones en la próxima partida.',
 }
 
 
@@ -85,6 +86,18 @@ def draw(room, seen, now=None):
     return update_game(room, change, now)
 
 
+def _winning_card(cards, prize, drawn):
+    """The first card that wins `prize` on its own, as (card, row), or None."""
+    for card in cards:
+        if prize == rules.LINEA:
+            row = rules.valid_linea_row(card.grid, card.marks, drawn)
+            if row is not None:
+                return card, row
+        elif rules.is_bingo(card.grid, card.marks, drawn):
+            return card, None
+    return None
+
+
 def claim(room, player, prize, now=None):
     now = now or timezone.now()
 
@@ -94,15 +107,13 @@ def claim(room, player, prize, now=None):
             raise Refused(refusal)
         if Claim.objects.filter(game=game, player=player, prize=prize).exists():
             return state
-        card = Card.objects.get(game=game, player=player)
-        row = None
-        if prize == rules.LINEA:
-            row = rules.valid_linea_row(card.grid, card.marks, state.drawn)
-            if row is None:
-                raise Refused('invalid_linea')
-        elif not rules.is_bingo(card.grid, card.marks, state.drawn):
-            raise Refused('invalid_bingo')
-        Claim.objects.create(game=game, player=player, prize=prize, row=row, created_at=now)
+        winner = _winning_card(Card.objects.filter(game=game, player=player), prize, state.drawn)
+        if winner is None:
+            raise Refused('invalid_linea' if prize == rules.LINEA else 'invalid_bingo')
+        card, row = winner
+        Claim.objects.create(
+            game=game, player=player, prize=prize, position=card.position, row=row, created_at=now
+        )
         return rules.start_pause(state, prize, now)
 
     return update_game(room, change, now)
@@ -125,10 +136,26 @@ def new_game(room, now=None):
         Game.objects.filter(room=room).delete()
         game = Game.objects.create(room=room, created_at=now)
         for player in room.players.filter(removed=False):
-            deal_card(game, player)
+            deal_cards(game, player)
         Room.objects.filter(pk=room.pk).update(auto_since=now if room.auto_interval else None)
     room.touch(now)
     return game
+
+
+def set_card_count(room, player, count, now=None):
+    """Play with `count` cards; only allowed before the first ball of the game."""
+    now = now or timezone.now()
+    with transaction.atomic():
+        # Same lock as update_game, so the first draw can't slip in between.
+        Game.objects.filter(room=room).update(version=F('version'))
+        game = Game.objects.get(room=room)
+        state, _ = game.settled(now)
+        if state.drawn or state.stage != rules.WAITING:
+            raise Refused('started')
+        player.card_count = count
+        player.save(update_fields=['card_count'])
+        deal_cards(game, player)
+    room.touch(now)
 
 
 def remove_player(room, player, now=None):
@@ -143,7 +170,7 @@ def remove_player(room, player, now=None):
 def _winners(game, prize, cards):
     result = []
     for claim_ in game.claims.filter(prize=prize).select_related('player'):
-        card = cards.get(claim_.player_id)
+        card = cards.get((claim_.player_id, claim_.position))
         if card is None:
             continue
         result.append({'nickname': claim_.player.nickname, 'numbers': claim_.winning_numbers(card)})
@@ -159,7 +186,7 @@ def state_payload(room, player=None, host=False, now=None):
     now = now or timezone.now()
     game = Game.objects.get(room=room)
     state, resumed_at = game.settled(now)
-    cards = {card.player_id: card for card in game.cards.all()}
+    cards = {(card.player_id, card.position): card for card in game.cards.all()}
 
     payload = {
         'game_id': game.pk,
@@ -178,17 +205,17 @@ def state_payload(room, player=None, host=False, now=None):
         }
 
     if player is not None:
-        card = cards.get(player.pk)
+        mine = [card for (player_id, _), card in sorted(cards.items()) if player_id == player.pk]
         payload['me'] = {
             'nickname': player.nickname,
             'removed': player.removed,
-            'card': card.grid if card else None,
-            'marks': card.marks if card else [],
+            'card_count': player.card_count,
+            'cards': [{'position': c.position, 'grid': c.grid, 'marks': c.marks} for c in mine],
         }
 
     if host:
         payload['players'] = [
-            {'id': p.pk, 'nickname': p.nickname} for p in room.players.filter(removed=False)
+            {'id': p.pk, 'nickname': p.nickname, 'cards': p.card_count} for p in room.players.filter(removed=False)
         ]
         payload['auto_interval'] = room.auto_interval
         payload['can_draw'] = rules.draw_refusal(state) is None

@@ -16,6 +16,12 @@
         <label for="nickname" class="form-label">¿Cómo te llamas?</label>
         <input type="text" id="nickname" name="nickname" value="{{ nickname }}" class="form-control form-control-lg mb-3"
                maxlength="{{ max_length }}" autocomplete="nickname" required autofocus>
+        <div class="btn-group w-100 mb-3" role="group" aria-label="Número de cartones">
+            {% for n in card_choices %}
+                <input type="radio" class="btn-check" name="cards" id="cards-{{ n }}" value="{{ n }}"{% if n == card_count %} checked{% endif %}>
+                <label class="btn btn-outline-light" for="cards-{{ n }}">{% if n == 1 %}1 cartón{% else %}{{ n }} cartones{% endif %}</label>
+            {% endfor %}
+        </div>
         <button type="submit" class="btn btn-primary btn-lg w-100">Jugar</button>
     </form>
 </div>

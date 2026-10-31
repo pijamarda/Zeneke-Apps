@@ -175,25 +175,60 @@
 
   // Player
 
-  function buildCard() {
-    const table = $('card');
-    const rows = (state.me.card || []).map((row) => {
-      const tr = el('tr');
-      row.forEach((n) => {
-        const td = el('td', n === null ? 'cell blank' : 'cell', n === null ? '' : n);
-        if (n !== null) td.dataset.number = n;
-        tr.appendChild(td);
+  // Pending marks are keyed by "position:number", since a number can be on both cards.
+  const markKey = (position, n) => position + ':' + n;
+
+  // What the cards on the page were built from: "game_id:position,position".
+  let builtCards = null;
+
+  function buildCards() {
+    const container = $('cards');
+    const two = state.me.cards.length > 1;
+    const parts = [];
+    state.me.cards.forEach((card) => {
+      if (two) parts.push(el('div', 'card-label', 'Cartón ' + (card.position + 1)));
+      const table = el('table', 'bingo-card');
+      table.dataset.card = card.position;
+      card.grid.forEach((row) => {
+        const tr = el('tr');
+        row.forEach((n) => {
+          const td = el('td', n === null ? 'cell blank' : 'cell', n === null ? '' : n);
+          if (n !== null) td.dataset.number = n;
+          tr.appendChild(td);
+        });
+        table.appendChild(tr);
       });
-      return tr;
+      parts.push(table);
     });
-    table.replaceChildren(...rows);
+    container.classList.toggle('two', two);
+    container.replaceChildren(...parts);
+  }
+
+  function cardsKey() {
+    return state.game_id + ':' + state.me.cards.map((card) => card.position).join(',');
   }
 
   function renderMarks() {
-    const marks = new Set(state.me.marks);
-    pendingMarks.forEach((marked, n) => { if (marked) marks.add(n); else marks.delete(n); });
-    $('card').querySelectorAll('.cell[data-number]').forEach((cell) => {
-      cell.classList.toggle('marked', marks.has(Number(cell.dataset.number)));
+    state.me.cards.forEach((card) => {
+      const table = $('cards').querySelector('table[data-card="' + card.position + '"]');
+      if (!table) return;
+      const marks = new Set(card.marks);
+      table.querySelectorAll('.cell[data-number]').forEach((cell) => {
+        const n = Number(cell.dataset.number);
+        const pending = pendingMarks.get(markKey(card.position, n));
+        cell.classList.toggle('marked', pending === undefined ? marks.has(n) : pending);
+      });
+    });
+  }
+
+  function renderCardCount() {
+    const control = $('card-count');
+    control.hidden = state.stage !== 'waiting';
+    control.querySelectorAll('[data-count]').forEach((button) => {
+      const active = Number(button.dataset.count) === state.me.card_count;
+      button.classList.toggle('btn-light', active);
+      button.classList.toggle('btn-outline-light', !active);
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
     });
   }
 
@@ -202,27 +237,45 @@
     if (state.game_id !== gameId) {
       gameId = state.game_id;
       pendingMarks.clear();
-      buildCard();
-      showMessage('¡Nueva partida! Tienes un cartón nuevo.', 'info');
+      showMessage(state.me.cards.length > 1
+        ? '¡Nueva partida! Tienes cartones nuevos.'
+        : '¡Nueva partida! Tienes un cartón nuevo.', 'info');
+    }
+    if (cardsKey() !== builtCards) {
+      // The first render keeps the server-rendered cards.
+      if (builtCards !== null) buildCards();
+      builtCards = cardsKey();
     }
     renderMarks();
+    renderCardCount();
     $('claim-linea').disabled = state.stage !== 'linea';
     $('claim-bingo').disabled = state.stage !== 'bingo';
   }
 
   function setupPlayer() {
-    $('card').addEventListener('click', async (event) => {
+    $('cards').addEventListener('click', async (event) => {
       const cell = event.target.closest('.cell[data-number]');
       if (!cell || state.stage === 'finished') return;
+      const position = Number(cell.closest('table[data-card]').dataset.card);
       const n = Number(cell.dataset.number);
+      const key = markKey(position, n);
       const marked = !cell.classList.contains('marked');
-      pendingMarks.set(n, marked);
+      pendingMarks.set(key, marked);
       renderMarks();
-      const result = await post(app.dataset.markUrl, { number: n, marked: marked ? '1' : '0' });
-      if (pendingMarks.get(n) === marked) pendingMarks.delete(n);
-      if (result.ok) state.me.marks = result.json.marks;
+      const result = await post(app.dataset.markUrl, { number: n, marked: marked ? '1' : '0', card: position });
+      if (pendingMarks.get(key) === marked) pendingMarks.delete(key);
+      const card = state.me.cards.find((c) => c.position === position);
+      if (result.ok && card) card.marks = result.json.marks;
+      else if (!result.ok) showMessage(result.json.message, 'error');
+      renderMarks();
+    });
+
+    $('card-count').addEventListener('click', async (event) => {
+      const button = event.target.closest('[data-count]');
+      if (!button || Number(button.dataset.count) === state.me.card_count) return;
+      const result = await post(app.dataset.cardsUrl, { count: button.dataset.count });
+      if (result.ok) update(result.json.state);
       else showMessage(result.json.message, 'error');
-      renderMarks();
     });
 
     document.querySelectorAll('[data-prize]').forEach((button) => {
@@ -494,7 +547,12 @@
     const list = $('players');
     list.replaceChildren(...state.players.map((p) => {
       const li = el('li');
-      li.appendChild(el('span', '', p.nickname));
+      const name = el('span', '', p.nickname);
+      if (p.cards > 1) {
+        name.append(' ');
+        name.appendChild(el('span', 'card-tag', '×' + p.cards));
+      }
+      li.appendChild(name);
       const remove = el('button', 'btn btn-sm btn-link text-danger remove-btn', 'Quitar');
       remove.type = 'button';
       remove.addEventListener('click', async () => {

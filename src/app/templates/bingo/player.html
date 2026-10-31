@@ -12,7 +12,8 @@
 <div id="bingo-app" data-role="player"
      data-state-url="{% url 'bingo:state' room.code %}"
      data-mark-url="{% url 'bingo:mark' room.code %}"
-     data-claim-url="{% url 'bingo:claim' room.code %}">
+     data-claim-url="{% url 'bingo:claim' room.code %}"
+     data-cards-url="{% url 'bingo:cards' room.code %}">
 
     <div class="d-flex align-items-center gap-3 mb-2">
         <div class="ball ball-last" id="last-ball">{{ state.last|default:"–" }}</div>
@@ -25,19 +26,30 @@
         {% for n in state.drawn reversed %}<span class="ball ball-small">{{ n }}</span>{% endfor %}
     </div>
 
-    <table class="bingo-card" id="card">
-        {% for row in card_rows %}
-        <tr>
-            {% for cell in row %}
-                {% if cell.number %}
-                    <td class="cell{% if cell.marked %} marked{% endif %}" data-number="{{ cell.number }}">{{ cell.number }}</td>
-                {% else %}
-                    <td class="cell blank"></td>
-                {% endif %}
-            {% endfor %}
-        </tr>
+    <div class="card-count btn-group w-100 mb-3" role="group" aria-label="Número de cartones" id="card-count"{% if state.stage != 'waiting' %} hidden{% endif %}>
+        {% for n in card_choices %}
+            <button type="button" class="btn btn-sm {% if n == player.card_count %}btn-light{% else %}btn-outline-light{% endif %}" data-count="{{ n }}">{% if n == 1 %}1 cartón{% else %}{{ n }} cartones{% endif %}</button>
         {% endfor %}
-    </table>
+    </div>
+
+    <div class="bingo-cards{% if cards|length > 1 %} two{% endif %}" id="cards">
+        {% for card in cards %}
+            {% if cards|length > 1 %}<div class="card-label">Cartón {{ card.label }}</div>{% endif %}
+            <table class="bingo-card" data-card="{{ card.position }}">
+                {% for row in card.rows %}
+                <tr>
+                    {% for cell in row %}
+                        {% if cell.number %}
+                            <td class="cell{% if cell.marked %} marked{% endif %}" data-number="{{ cell.number }}">{{ cell.number }}</td>
+                        {% else %}
+                            <td class="cell blank"></td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        {% endfor %}
+    </div>
 
     <div class="claim-buttons">
         <button type="button" class="btn btn-warning btn-lg" id="claim-linea" data-prize="linea">¡Línea!</button>
